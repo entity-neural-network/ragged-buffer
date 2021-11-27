@@ -1,0 +1,12 @@
+[package]
+name = "ragged-buffer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "ragged_buffer"
+crate-type = ["cdylib"]
+
+[dependencies]
+numpy = "0.15"
+pyo3 = { version = "0.15", features = ["extension-module"] }
