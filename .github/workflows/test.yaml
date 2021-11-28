@@ -22,7 +22,8 @@ jobs:
       - uses: messense/maturin-action@v1
         with:
           maturin-version: latest
-          command: develop
+          command: build
       - name: Test
         run: |
+          pip install target/debug/ragged_buffer-*.whl
           python test.py
