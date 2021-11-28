@@ -26,9 +26,5 @@ jobs:
       - name: Test
         run: |
           python -m pip install --upgrade pip
-          which python
-          python --version
-          which pip
-          pip --version
           pip install target/wheels/ragged_buffer-*.whl
           python test.py
