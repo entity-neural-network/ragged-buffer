@@ -9,7 +9,7 @@ and currently only supports a small selection of the numpy array methods.
 
 ## User Guide
 
-Install the package with `pip install enn-ragged-buffer`.
+Install the package with `pip install ragged-buffer`.
 The package currently supports two `RaggedBuffer` variants, `RaggedBufferF32` (storing float32 values) and `RaggedBufferI64` (storing int64 values).
 
 <!-- no toc -->
