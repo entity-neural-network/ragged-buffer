@@ -1,4 +1,4 @@
-use numpy::{PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
 use std::fmt::{Display, Write};
 use std::ops::{Add, Range};
 
@@ -28,6 +28,24 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T>> RaggedBuffer<T> {
             subarrays: (0..data.shape()[0])
                 .map(|i| i * features * data.shape()[1]..(i + 1) * features * data.shape()[1])
                 .collect(),
+            features,
+        }
+    }
+
+    pub fn from_flattened(data: PyReadonlyArray2<T>, lenghts: PyReadonlyArray1<i64>) -> Self {
+        let data = data.as_array();
+        let lenghts = lenghts.as_array();
+        let features = data.shape()[1];
+        let mut subarrays = Vec::new();
+        let mut data_index = 0;
+        for len in lenghts.iter().cloned() {
+            let l = len as usize * features;
+            subarrays.push(data_index..(data_index + l));
+            data_index += l;
+        }
+        RaggedBuffer {
+            data: data.iter().cloned().collect(),
+            subarrays,
             features,
         }
     }

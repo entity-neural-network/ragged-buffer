@@ -51,3 +51,20 @@ rb5 = rb3 + rb4
 assert np.all(
     rb5.as_array() == np.array([[0], [3], [4], [5], [10], [15]], dtype=np.int64)
 ), f"{rb5.as_array()}"
+
+rb6 = RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 0, 2, 1], dtype=np.int64),
+)
+print(rb6)
+
