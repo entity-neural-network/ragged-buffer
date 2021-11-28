@@ -25,5 +25,5 @@ jobs:
           command: build
       - name: Test
         run: |
-          pip install target/debug/ragged_buffer-*.whl
+          pip install target/wheels/ragged_buffer-*.whl
           python test.py
