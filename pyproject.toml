@@ -1,2 +1,8 @@
 [project]
+name = "ragged-buffer"
 dependencies = ["numpy~=1.21"]
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
