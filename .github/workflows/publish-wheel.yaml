@@ -46,4 +46,4 @@ jobs:
         with:
           maturin-version: latest
           command: publish
-          args: --username=__token__
+          args: --username=__token__ --skip-existing

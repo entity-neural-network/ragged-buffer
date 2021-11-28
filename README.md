@@ -19,6 +19,7 @@ The package currently supports two `RaggedBuffer` variants, `RaggedBufferF32` (s
 - [Indexing](#indexing)
 - [Addition](#addition)
 - [Concatenation](#concatentation)
+- [Clear](#clear)
 
 ### Creating a RaggedBuffer
 
@@ -161,4 +162,18 @@ rb1 = RaggedBufferF32.from_array(np.zeros((4, 5, 3), dtype=np.float32))
 rb2 = RaggedBufferF32.from_array(np.zeros((2, 5, 3), dtype=np.float32))
 rb1.extend(r2)
 assert rb1.size0() == 6
+```
+
+### Clear
+
+The `clear` method removes all elements from a `RaggedBuffer` without deallocating the underlying memory.
+
+
+```python
+import numpy as np
+from ragged_buffer import RaggedBufferF32
+
+rb = RaggedBufferF32.from_array(np.zeros((4, 5, 3), dtype=np.float32))
+rb.clear()
+assert rb.size0() == 0
 ```
