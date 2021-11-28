@@ -95,23 +95,27 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         }
     }
 
-    pub fn multi_index(&self, indices: &[usize]) -> RaggedBuffer<T> {
+    pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBuffer<T>> {
+        let indices = indices.as_array();
+        let indices = indices.as_slice().ok_or_else(|| {
+            pyo3::exceptions::PyValueError::new_err("Indices must be a **contiguous** 1D array")
+        })?;
         let mut subarrays = Vec::with_capacity(indices.len());
         let mut len = 0usize;
         for i in indices {
-            let sublen = self.subarrays[*i].end - self.subarrays[*i].start;
+            let sublen = self.subarrays[*i as usize].end - self.subarrays[*i as usize].start;
             subarrays.push(len..(len + sublen));
             len += sublen;
         }
         let mut data = Vec::with_capacity(len);
         for i in indices {
-            data.extend_from_slice(&self.data[self.subarrays[*i].clone()]);
+            data.extend_from_slice(&self.data[self.subarrays[*i as usize].clone()]);
         }
-        RaggedBuffer {
+        Ok(RaggedBuffer {
             data,
             subarrays,
             features: self.features,
-        }
+        })
     }
 
     pub fn size0(&self) -> usize {

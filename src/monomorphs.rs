@@ -1,10 +1,11 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
 use pyo3::types::PyType;
-use pyo3::{prelude::*, PyNumberProtocol, PyObjectProtocol};
+use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
 
 use crate::ragged_buffer::RaggedBuffer;
 
 #[pyclass]
+#[derive(Clone)]
 pub struct RaggedBufferF32(RaggedBuffer<f32>);
 
 #[pymethods]
@@ -65,9 +66,16 @@ impl PyObjectProtocol for RaggedBufferF32 {
 }
 
 #[pyproto]
-impl PyNumberProtocol for RaggedBufferI64 {
-    fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64) -> PyResult<RaggedBufferI64> {
-        Ok(RaggedBufferI64(lhs.0.add(&rhs.0)?))
+impl PyNumberProtocol for RaggedBufferF32 {
+    fn __add__(lhs: RaggedBufferF32, rhs: RaggedBufferF32) -> PyResult<RaggedBufferF32> {
+        Ok(RaggedBufferF32(lhs.0.add(&rhs.0)?))
+    }
+}
+
+#[pyproto]
+impl<'p> PyMappingProtocol for RaggedBufferF32 {
+    fn __getitem__(&self, index: PyReadonlyArray1<'p, i64>) -> PyResult<RaggedBufferF32> {
+        Ok(RaggedBufferF32(self.0.swizzle(index)?))
     }
 }
 
@@ -130,5 +138,19 @@ impl PyObjectProtocol for RaggedBufferI64 {
     }
     fn __repr__(&self) -> PyResult<String> {
         self.0.__str__()
+    }
+}
+
+#[pyproto]
+impl PyNumberProtocol for RaggedBufferI64 {
+    fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(lhs.0.add(&rhs.0)?))
+    }
+}
+
+#[pyproto]
+impl<'p> PyMappingProtocol for RaggedBufferI64 {
+    fn __getitem__(&self, index: PyReadonlyArray1<'p, i64>) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(self.0.swizzle(index)?))
     }
 }
