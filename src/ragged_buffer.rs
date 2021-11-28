@@ -4,7 +4,7 @@ use std::ops::{Add, Range};
 
 use pyo3::prelude::*;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct RaggedBuffer<T> {
     data: Vec<T>,
     subarrays: Vec<Range<usize>>,

@@ -1,4 +1,5 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
+use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
 
@@ -62,8 +63,19 @@ impl PyObjectProtocol for RaggedBufferI64 {
     fn __str__(&self) -> PyResult<String> {
         self.0.__str__()
     }
+
     fn __repr__(&self) -> PyResult<String> {
         self.0.__str__()
+    }
+
+    fn __richcmp__(&self, other: RaggedBufferI64, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Eq => Ok(self.0 == other.0),
+            CompareOp::Ne => Ok(self.0 != other.0),
+            _ => Err(pyo3::exceptions::PyTypeError::new_err(
+                "Only == and != are supported",
+            )),
+        }
     }
 }
 
