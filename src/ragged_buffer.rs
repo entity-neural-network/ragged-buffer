@@ -1,4 +1,4 @@
-use numpy::PyReadonlyArrayDyn;
+use numpy::{PyReadonlyArrayDyn, ToPyArray};
 use std::fmt::{Display, Write};
 use std::ops::Range;
 
@@ -63,6 +63,16 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
         .unwrap();
 
         Ok(array)
+    }
+
+    pub fn as_array<'a>(
+        &self,
+        py: Python<'a>,
+    ) -> &'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>> {
+        self.data
+            .to_pyarray(py)
+            .reshape((self.data.len() / self.features, self.features))
+            .unwrap()
     }
 }
 

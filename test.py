@@ -18,3 +18,5 @@ rba.push(
 )
 rba.push(np.array([[]], dtype=np.float32))
 print(rba)
+
+print(rba.as_array())

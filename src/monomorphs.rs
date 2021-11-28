@@ -20,6 +20,13 @@ impl RaggedBufferF32 {
     fn clear(&mut self) {
         self.0.clear();
     }
+
+    fn as_array<'a>(
+        &self,
+        py: Python<'a>,
+    ) -> &'a numpy::PyArray<f32, numpy::ndarray::Dim<[usize; 2]>> {
+        self.0.as_array(py)
+    }
 }
 
 #[pyproto]
@@ -45,6 +52,13 @@ impl RaggedBufferI64 {
 
     fn clear(&mut self) {
         self.0.clear();
+    }
+
+    fn as_array<'a>(
+        &self,
+        py: Python<'a>,
+    ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 2]>> {
+        self.0.as_array(py)
     }
 }
 
