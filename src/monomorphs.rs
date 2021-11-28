@@ -30,16 +30,16 @@ impl PyObjectProtocol for RaggedBufferF32 {
 }
 
 #[pyclass]
-pub struct RaggedBufferU64(RaggedBuffer<u64>);
+pub struct RaggedBufferI64(RaggedBuffer<i64>);
 
 #[pymethods]
-impl RaggedBufferU64 {
+impl RaggedBufferI64 {
     #[new]
     pub fn new(features: usize) -> Self {
-        RaggedBufferU64(RaggedBuffer::new(features))
+        RaggedBufferI64(RaggedBuffer::new(features))
     }
 
-    fn push(&mut self, features: PyReadonlyArrayDyn<u64>) {
+    fn push(&mut self, features: PyReadonlyArrayDyn<i64>) {
         self.0.push(features);
     }
 
@@ -49,7 +49,7 @@ impl RaggedBufferU64 {
 }
 
 #[pyproto]
-impl PyObjectProtocol for RaggedBufferU64 {
+impl PyObjectProtocol for RaggedBufferI64 {
     fn __str__(&self) -> PyResult<String> {
         self.0.__str__()
     }

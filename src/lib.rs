@@ -12,7 +12,7 @@ pub fn test(py: Python, s: &str) -> PyResult<PyObject> {
 fn ragged_buffer(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(test, m)?).unwrap();
     m.add_class::<monomorphs::RaggedBufferF32>()?;
-    m.add_class::<monomorphs::RaggedBufferU64>()?;
+    m.add_class::<monomorphs::RaggedBufferI64>()?;
     Ok(())
 }
 
