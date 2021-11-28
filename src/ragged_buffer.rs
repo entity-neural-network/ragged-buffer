@@ -118,6 +118,15 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         })
     }
 
+    pub fn get(&self, i: usize) -> RaggedBuffer<T> {
+        let subarray = self.subarrays[i].clone();
+        RaggedBuffer {
+            subarrays: vec![0..subarray.len()],
+            data: self.data[subarray].to_vec(),
+            features: self.features,
+        }
+    }
+
     pub fn size0(&self) -> usize {
         self.subarrays.len()
     }

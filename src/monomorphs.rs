@@ -74,8 +74,11 @@ impl PyNumberProtocol for RaggedBufferF32 {
 
 #[pyproto]
 impl<'p> PyMappingProtocol for RaggedBufferF32 {
-    fn __getitem__(&self, index: PyReadonlyArray1<'p, i64>) -> PyResult<RaggedBufferF32> {
-        Ok(RaggedBufferF32(self.0.swizzle(index)?))
+    fn __getitem__(&self, index: IndicesOrInt<'p>) -> PyResult<RaggedBufferF32> {
+        match index {
+            IndicesOrInt::Indices(indices) => Ok(RaggedBufferF32(self.0.swizzle(indices)?)),
+            IndicesOrInt::Int(i) => Ok(RaggedBufferF32(self.0.get(i))),
+        }
     }
 }
 
@@ -148,9 +151,18 @@ impl PyNumberProtocol for RaggedBufferI64 {
     }
 }
 
+#[derive(FromPyObject)]
+pub enum IndicesOrInt<'a> {
+    Indices(PyReadonlyArray1<'a, i64>),
+    Int(usize),
+}
+
 #[pyproto]
 impl<'p> PyMappingProtocol for RaggedBufferI64 {
-    fn __getitem__(&self, index: PyReadonlyArray1<'p, i64>) -> PyResult<RaggedBufferI64> {
-        Ok(RaggedBufferI64(self.0.swizzle(index)?))
+    fn __getitem__(&self, index: IndicesOrInt<'p>) -> PyResult<RaggedBufferI64> {
+        match index {
+            IndicesOrInt::Indices(indices) => Ok(RaggedBufferI64(self.0.swizzle(indices)?)),
+            IndicesOrInt::Int(i) => Ok(RaggedBufferI64(self.0.get(i))),
+        }
     }
 }
