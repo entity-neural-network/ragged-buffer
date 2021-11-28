@@ -1,8 +1,5 @@
 import numpy as np
-import ragged_buffer
 from ragged_buffer import RaggedBufferF32, RaggedBufferI64
-
-print(ragged_buffer.test("yoyoyo"))
 
 rba = RaggedBufferF32(3)
 print(rba)
@@ -69,4 +66,4 @@ rb6 = RaggedBufferF32.from_flattened(
 print(rb6)
 print(rb6[np.array([1, 3, 0], dtype=np.int64)])
 
-print(rb6[2].as_array())
+print(rb6[2])
