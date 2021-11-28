@@ -51,6 +51,9 @@ impl PyObjectProtocol for RaggedBufferF32 {
     fn __str__(&self) -> PyResult<String> {
         self.0.__str__()
     }
+    fn __repr__(&self) -> PyResult<String> {
+        self.0.__str__()
+    }
 }
 
 #[pyproto]
@@ -107,6 +110,9 @@ impl RaggedBufferI64 {
 #[pyproto]
 impl PyObjectProtocol for RaggedBufferI64 {
     fn __str__(&self) -> PyResult<String> {
+        self.0.__str__()
+    }
+    fn __repr__(&self) -> PyResult<String> {
         self.0.__str__()
     }
 }
