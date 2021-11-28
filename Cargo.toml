@@ -3,6 +3,7 @@ name = "enn-ragged-buffer"
 version = "0.1.0"
 edition = "2021"
 authors = ["Clemens Winter <clemenswinter1@gmail.com>"]
+readme = "README.md"
 
 [lib]
 name = "ragged_buffer"
