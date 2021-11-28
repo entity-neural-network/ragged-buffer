@@ -20,3 +20,12 @@ rba.push(np.array([[]], dtype=np.float32))
 print(rba)
 
 print(rba.as_array())
+
+
+rba2 = RaggedBufferF32(3)
+rba2.push(np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
+rba2.push(np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
+
+rba.extend(rba2)
+print(rba)
+

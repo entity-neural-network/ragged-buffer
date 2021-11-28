@@ -2,12 +2,11 @@ use numpy::{PyReadonlyArrayDyn, ToPyArray};
 use std::fmt::{Display, Write};
 use std::ops::Range;
 
-use numpy::ndarray::ArrayViewD;
 use pyo3::prelude::*;
 
 pub struct RaggedBuffer<T> {
     data: Vec<T>,
-    subarrays: Vec<Range<u32>>,
+    subarrays: Vec<Range<usize>>,
     features: usize,
 }
 
@@ -20,8 +19,18 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
         }
     }
 
-    pub fn push(&mut self, x: PyReadonlyArrayDyn<T>) {
-        self._push(x.as_array());
+    pub fn extend(&mut self, other: &RaggedBuffer<T>) -> PyResult<()> {
+        if self.features != other.features {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Features mismatch: {} != {}",
+                self.features, other.features
+            )));
+        }
+        let len = self.data.len();
+        self.data.extend(other.data.iter());
+        self.subarrays
+            .extend(other.subarrays.iter().map(|r| r.start + len..r.end + len));
+        Ok(())
     }
 
     pub fn clear(&mut self) {
@@ -39,14 +48,14 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
             } else {
                 writeln!(array, "    [").unwrap();
                 for i in range.clone() {
-                    if i as usize % self.features == 0 {
+                    if i % self.features == 0 {
                         if i != range.start {
                             writeln!(array, "],").unwrap();
                         }
                         write!(array, "        [").unwrap();
                     }
-                    write!(array, "{}", self.data[i as usize]).unwrap();
-                    if i as usize % self.features != self.features - 1 {
+                    write!(array, "{}", self.data[i]).unwrap();
+                    if i % self.features != self.features - 1 {
                         write!(array, ", ").unwrap();
                     }
                 }
@@ -74,13 +83,12 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
             .reshape((self.data.len() / self.features, self.features))
             .unwrap()
     }
-}
 
-impl<T: numpy::Element + Copy> RaggedBuffer<T> {
-    fn _push(&mut self, data: ArrayViewD<'_, T>) {
+    pub fn push(&mut self, x: PyReadonlyArrayDyn<T>) {
+        let data = x.as_array();
         assert!(data.len() % self.features == 0);
-        let start = self.data.len() as u32;
-        let len = data.len() as u32;
+        let start = self.data.len();
+        let len = data.len();
         self.subarrays.push(start..(start + len));
         match data.as_slice() {
             Some(slice) => self.data.extend_from_slice(slice),
@@ -97,13 +105,12 @@ impl<T: numpy::Element + Copy> RaggedBuffer<T> {
         let mut len = 0usize;
         for i in indices {
             let sublen = self.subarrays[*i].end - self.subarrays[*i].start;
-            subarrays.push(len as u32..(len as u32 + sublen));
-            len += sublen as usize;
+            subarrays.push(len..(len + sublen));
+            len += sublen;
         }
         let mut data = Vec::with_capacity(len);
         for i in indices {
-            let Range { start, end } = self.subarrays[*i];
-            data.extend_from_slice(&self.data[start as usize..end as usize]);
+            data.extend_from_slice(&self.data[self.subarrays[*i].clone()]);
         }
         RaggedBuffer {
             data,

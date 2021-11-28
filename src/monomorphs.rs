@@ -27,6 +27,10 @@ impl RaggedBufferF32 {
     ) -> &'a numpy::PyArray<f32, numpy::ndarray::Dim<[usize; 2]>> {
         self.0.as_array(py)
     }
+
+    fn extend(&mut self, other: &RaggedBufferF32) -> PyResult<()> {
+        self.0.extend(&other.0)
+    }
 }
 
 #[pyproto]
@@ -59,6 +63,10 @@ impl RaggedBufferI64 {
         py: Python<'a>,
     ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 2]>> {
         self.0.as_array(py)
+    }
+
+    fn extend(&mut self, other: &RaggedBufferI64) -> PyResult<()> {
+        self.0.extend(&other.0)
     }
 }
 
