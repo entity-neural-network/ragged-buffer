@@ -1,5 +1,6 @@
-use numpy::PyReadonlyArrayDyn;
-use pyo3::{prelude::*, PyObjectProtocol};
+use numpy::{PyReadonlyArray3, PyReadonlyArrayDyn};
+use pyo3::types::PyType;
+use pyo3::{prelude::*, PyNumberProtocol, PyObjectProtocol};
 
 use crate::ragged_buffer::RaggedBuffer;
 
@@ -12,7 +13,10 @@ impl RaggedBufferF32 {
     pub fn new(features: usize) -> Self {
         RaggedBufferF32(RaggedBuffer::new(features))
     }
-
+    #[classmethod]
+    fn from_array(_cls: &PyType, array: PyReadonlyArray3<f32>) -> Self {
+        RaggedBufferF32(RaggedBuffer::from_array(array))
+    }
     fn push(&mut self, features: PyReadonlyArrayDyn<f32>) {
         self.0.push(features);
     }
@@ -49,7 +53,15 @@ impl PyObjectProtocol for RaggedBufferF32 {
     }
 }
 
+#[pyproto]
+impl PyNumberProtocol for RaggedBufferI64 {
+    fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(lhs.0.add(&rhs.0)?))
+    }
+}
+
 #[pyclass]
+#[derive(Clone)]
 pub struct RaggedBufferI64(RaggedBuffer<i64>);
 
 #[pymethods]
@@ -57,6 +69,10 @@ impl RaggedBufferI64 {
     #[new]
     pub fn new(features: usize) -> Self {
         RaggedBufferI64(RaggedBuffer::new(features))
+    }
+    #[classmethod]
+    fn from_array(_cls: &PyType, array: PyReadonlyArray3<i64>) -> Self {
+        RaggedBufferI64(RaggedBuffer::from_array(array))
     }
 
     fn push(&mut self, features: PyReadonlyArrayDyn<i64>) {

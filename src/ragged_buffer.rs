@@ -1,20 +1,33 @@
-use numpy::{PyReadonlyArrayDyn, ToPyArray};
+use numpy::{PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
 use std::fmt::{Display, Write};
-use std::ops::Range;
+use std::ops::{Add, Range};
 
 use pyo3::prelude::*;
 
+#[derive(Clone)]
 pub struct RaggedBuffer<T> {
     data: Vec<T>,
     subarrays: Vec<Range<usize>>,
     features: usize,
 }
 
-impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
-    pub fn new(features: usize) -> RaggedBuffer<T> {
+impl<T: numpy::Element + Copy + Display + Add<Output = T>> RaggedBuffer<T> {
+    pub fn new(features: usize) -> Self {
         RaggedBuffer {
             data: Vec::new(),
             subarrays: Vec::new(),
+            features,
+        }
+    }
+
+    pub fn from_array(data: PyReadonlyArray3<T>) -> Self {
+        let data = data.as_array();
+        let features = data.shape()[2];
+        RaggedBuffer {
+            data: data.iter().cloned().collect(),
+            subarrays: (0..data.shape()[0])
+                .map(|i| i * features * data.shape()[1]..(i + 1) * features * data.shape()[1])
+                .collect(),
             features,
         }
     }
@@ -129,12 +142,72 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
         }
         write!(
             array,
-            "], '{} * var * {} * f32)",
+            "], '{} * var * {} * {})",
             self.subarrays.len(),
-            self.features
+            self.features,
+            std::any::type_name::<T>(),
         )
         .unwrap();
 
         Ok(array)
+    }
+
+    pub fn add(&self, rhs: &RaggedBuffer<T>) -> PyResult<RaggedBuffer<T>> {
+        if self.features == rhs.features && self.subarrays == rhs.subarrays {
+            let mut data = Vec::with_capacity(self.data.len());
+            for i in 0..self.data.len() {
+                data.push(self.data[i] + rhs.data[i]);
+            }
+            Ok(RaggedBuffer {
+                data,
+                subarrays: self.subarrays.clone(),
+                features: self.features,
+            })
+        } else if self.features == rhs.features
+            && self.subarrays.len() == rhs.subarrays.len()
+            && self
+                .subarrays
+                .iter()
+                .all(|r| (r.end - r.start) == self.features)
+        {
+            let mut data = Vec::with_capacity(self.data.len());
+            for (subarray, rhs_subarray) in self.subarrays.iter().zip(rhs.subarrays.iter()) {
+                let mut i = subarray.start;
+                while i < subarray.end {
+                    for j in rhs_subarray.clone() {
+                        data.push(self.data[i] + rhs.data[j]);
+                    }
+                    i += self.features;
+                }
+            }
+            Ok(RaggedBuffer {
+                data,
+                subarrays: self.subarrays.clone(),
+                features: self.features,
+            })
+        } else if self.features == rhs.features
+            && rhs
+                .subarrays
+                .iter()
+                .all(|r| (r.end - r.start) == self.features)
+        {
+            rhs.add(self)
+        } else {
+            Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Dimensions mismatch: ({}, {:?}, {}) != ({}, {:?}, {})",
+                self.size0(),
+                self.subarrays
+                    .iter()
+                    .map(|r| (r.end - r.start) / self.features)
+                    .collect::<Vec<_>>(),
+                self.size2(),
+                rhs.size0(),
+                rhs.subarrays
+                    .iter()
+                    .map(|r| (r.end - r.start) / self.features)
+                    .collect::<Vec<_>>(),
+                rhs.size2(),
+            )))
+        }
     }
 }
