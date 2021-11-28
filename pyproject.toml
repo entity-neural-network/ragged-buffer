@@ -1,6 +1,8 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
 [project]
 name = "ragged-buffer"
-build-backend = "setuptools.build_meta"
 dependencies = ["numpy~=1.21"]
 requires-python = ">=3.6"
 classifiers = [
