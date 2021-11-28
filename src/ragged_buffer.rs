@@ -11,7 +11,7 @@ pub struct RaggedBuffer<T> {
     features: usize,
 }
 
-impl<T: numpy::Element + Copy + Display + Add<Output = T>> RaggedBuffer<T> {
+impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> RaggedBuffer<T> {
     pub fn new(features: usize) -> Self {
         RaggedBuffer {
             data: Vec::new(),
@@ -140,6 +140,8 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T>> RaggedBuffer<T> {
         for range in &self.subarrays {
             if range.start == range.end {
                 writeln!(array, "    [],").unwrap();
+            } else if range.end - range.start == self.features {
+                writeln!(array, "    [{:?}],", &self.data[range.clone()]).unwrap();
             } else {
                 writeln!(array, "    [").unwrap();
                 for i in range.clone() {
