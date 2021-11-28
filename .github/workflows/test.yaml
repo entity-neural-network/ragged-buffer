@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: messense/maturin-action@v1
+        with:
+          maturin-version: latest
+          command: develop
+      - name: Test
+        run: |
+          python test.py
