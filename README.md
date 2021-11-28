@@ -5,6 +5,8 @@ a 3D numpy array, but which allows for variable sequence length in the second
 dimension. It was created primarily for use in [ENN-PPO](https://github.com/entity-neural-network/incubator/tree/main/enn_ppo) 
 and currently only supports a small selection of the numpy array methods.
 
+![Ragged Buffer](https://user-images.githubusercontent.com/12845088/143787823-c6a585de-aeda-429c-9824-f4b4a98e6cea.png)
+
 ## User Guide
 
 Install the package with `pip install enn-ragged-buffer`.
