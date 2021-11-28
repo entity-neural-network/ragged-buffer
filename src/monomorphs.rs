@@ -31,6 +31,15 @@ impl RaggedBufferF32 {
     fn extend(&mut self, other: &RaggedBufferF32) -> PyResult<()> {
         self.0.extend(&other.0)
     }
+    fn size0(&self) -> usize {
+        self.0.size0()
+    }
+    fn size1(&self, i: usize) -> PyResult<usize> {
+        self.0.size1(i)
+    }
+    fn size2(&self) -> usize {
+        self.0.size2()
+    }
 }
 
 #[pyproto]
@@ -67,6 +76,15 @@ impl RaggedBufferI64 {
 
     fn extend(&mut self, other: &RaggedBufferI64) -> PyResult<()> {
         self.0.extend(&other.0)
+    }
+    fn size0(&self) -> usize {
+        self.0.size0()
+    }
+    fn size1(&self, i: usize) -> PyResult<usize> {
+        self.0.size1(i)
+    }
+    fn size2(&self) -> usize {
+        self.0.size2()
     }
 }
 

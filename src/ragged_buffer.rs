@@ -38,42 +38,6 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
         self.subarrays.clear();
     }
 
-    pub fn __str__(&self) -> PyResult<String> {
-        let mut array = String::new();
-        array.push_str("RaggedBuffer([");
-        array.push('\n');
-        for range in &self.subarrays {
-            if range.start == range.end {
-                writeln!(array, "    [],").unwrap();
-            } else {
-                writeln!(array, "    [").unwrap();
-                for i in range.clone() {
-                    if i % self.features == 0 {
-                        if i != range.start {
-                            writeln!(array, "],").unwrap();
-                        }
-                        write!(array, "        [").unwrap();
-                    }
-                    write!(array, "{}", self.data[i]).unwrap();
-                    if i % self.features != self.features - 1 {
-                        write!(array, ", ").unwrap();
-                    }
-                }
-                writeln!(array, "],").unwrap();
-                writeln!(array, "    ],").unwrap();
-            }
-        }
-        write!(
-            array,
-            "], '{} * var * {} * f32)",
-            self.subarrays.len(),
-            self.features
-        )
-        .unwrap();
-
-        Ok(array)
-    }
-
     pub fn as_array<'a>(
         &self,
         py: Python<'a>,
@@ -117,5 +81,60 @@ impl<T: numpy::Element + Copy + Display> RaggedBuffer<T> {
             subarrays,
             features: self.features,
         }
+    }
+
+    pub fn size0(&self) -> usize {
+        self.subarrays.len()
+    }
+
+    pub fn size1(&self, i: usize) -> PyResult<usize> {
+        if i >= self.subarrays.len() {
+            Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                "Index {} out of range",
+                i
+            )))
+        } else {
+            Ok((self.subarrays[i].end - self.subarrays[i].start) / self.features)
+        }
+    }
+
+    pub fn size2(&self) -> usize {
+        self.features
+    }
+
+    pub fn __str__(&self) -> PyResult<String> {
+        let mut array = String::new();
+        array.push_str("RaggedBuffer([");
+        array.push('\n');
+        for range in &self.subarrays {
+            if range.start == range.end {
+                writeln!(array, "    [],").unwrap();
+            } else {
+                writeln!(array, "    [").unwrap();
+                for i in range.clone() {
+                    if i % self.features == 0 {
+                        if i != range.start {
+                            writeln!(array, "],").unwrap();
+                        }
+                        write!(array, "        [").unwrap();
+                    }
+                    write!(array, "{}", self.data[i]).unwrap();
+                    if i % self.features != self.features - 1 {
+                        write!(array, ", ").unwrap();
+                    }
+                }
+                writeln!(array, "],").unwrap();
+                writeln!(array, "    ],").unwrap();
+            }
+        }
+        write!(
+            array,
+            "], '{} * var * {} * f32)",
+            self.subarrays.len(),
+            self.features
+        )
+        .unwrap();
+
+        Ok(array)
     }
 }
