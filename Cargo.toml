@@ -1,6 +1,6 @@
 [package]
-name = "enn-ragged-buffer"
-version = "0.1.0"
+name = "ragged-buffer"
+version = "0.1.1"
 edition = "2021"
 authors = ["Clemens Winter <clemenswinter1@gmail.com>"]
 readme = "README.md"
