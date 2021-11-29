@@ -1,7 +1,15 @@
+from typing import TypeVar
 import numpy as np
-from ragged_buffer import RaggedBufferF32, RaggedBufferI64
+from ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBuffer
 
 rba = RaggedBufferF32(3)
+
+ScalarType = TypeVar("ScalarType", bound=np.generic)
+
+
+def generic_len(r: RaggedBuffer[ScalarType]) -> int:
+    return sum([r.size1(s) for s in range(r.size0())]) * r.size2()
+
 
 expected = """RaggedBuffer([
 ], '0 * var * 3 * f32)"""
@@ -18,6 +26,8 @@ rba.push(
     )
 )
 rba.push(np.array([[]], dtype=np.float32))
+
+assert generic_len(rba) == 27, f"Expected 27 elements, got {generic_len(rba)}"
 
 expected = """RaggedBuffer([
     [
