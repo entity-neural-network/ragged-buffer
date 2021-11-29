@@ -1,7 +1,7 @@
 # ENN Ragged Buffer
 
 [![Actions Status](https://github.com/entity-neural-network/ragged-buffer/workflows/Test/badge.svg)](https://github.com/entity-neural-network/ragged-buffer/actions)
-[![PyPI](https://img.shields.io/pypi/v/ragged-buffer.svg?style=flat-square)](https://pypi.org/project/python-ron/)
+[![PyPI](https://img.shields.io/pypi/v/ragged-buffer.svg?style=flat-square)](https://pypi.org/project/ragged-buffer/)
 [![Discord](https://img.shields.io/discord/913497968701747270?style=flat-square)](https://discord.gg/SjVqhSW4Qf)
 
 This Python package implements an efficient `RaggedBuffer` datatype that is similar to
