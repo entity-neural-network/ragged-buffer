@@ -1,5 +1,9 @@
 # ENN Ragged Buffer
 
+[![Actions Status](https://github.com/entity-neural-network/ragged-buffer/workflows/Test/badge.svg)](https://github.com/entity-neural-network/ragged-buffer/actions)
+[![PyPI](https://img.shields.io/pypi/v/ragged-buffer.svg?style=flat-square)](https://pypi.org/project/python-ron/)
+[![Discord](https://img.shields.io/discord/913497968701747270?style=flat-square)](https://discord.gg/SjVqhSW4Qf)
+
 This Python package implements an efficient `RaggedBuffer` datatype that is similar to
 a 3D numpy array, but which allows for variable sequence length in the second
 dimension. It was created primarily for use in [ENN-PPO](https://github.com/entity-neural-network/incubator/tree/main/enn_ppo) 
