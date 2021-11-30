@@ -181,3 +181,7 @@ rb = RaggedBufferF32.from_array(np.zeros((4, 5, 3), dtype=np.float32))
 rb.clear()
 assert rb.size0() == 0
 ```
+
+## License
+
+ENN Ragged Buffer dual-licensed under Apache-2.0 and MIT.
