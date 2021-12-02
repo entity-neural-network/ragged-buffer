@@ -134,10 +134,10 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
     pub fn lengths<'a>(
         &self,
         py: Python<'a>,
-    ) -> &'a numpy::PyArray<usize, numpy::ndarray::Dim<[usize; 1]>> {
+    ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>> {
         self.subarrays
             .iter()
-            .map(|r| (r.end - r.start) / self.features)
+            .map(|r| ((r.end - r.start) / self.features) as i64)
             .collect::<Vec<_>>()
             .to_pyarray(py)
     }
