@@ -110,6 +110,7 @@ rb5 = rb3 + rb4
 assert np.all(
     rb5.as_array() == np.array([[0], [3], [4], [5], [10], [15]], dtype=np.int64)
 ), f"{rb5.as_array()}"
+assert rb3 + rb4 == rb4 + rb3
 
 rb6 = RaggedBufferF32.from_flattened(
     np.array(
@@ -162,3 +163,18 @@ assert np.all(
     == np.array([0, 1, 2, 6, 0, 1, 2, 6, 3, 7, 8, 3, 7, 8, 4, 5, 4, 5], dtype=np.int64),
 ), f"{flat} {ragged_buffer.cat([flati1, flati2, flati1, flati2], dim=1)}"
 print("TEST 5 PASSED")
+
+
+mask = RaggedBufferI64.from_array(np.zeros((4, 1, 1), dtype=np.int64))
+offset = RaggedBufferI64.from_flattened(
+    np.array([0, 1, 2, 3, 13, 22, 32, 41, 42, 43, 44, 45,], dtype=np.int64).reshape(
+        -1, 1,
+    ),
+    np.ones(12, dtype=np.int64),
+)
+try:
+    mask = mask + offset
+except ValueError as e:
+    pass
+else:
+    assert False, "Did not raise ValueError"

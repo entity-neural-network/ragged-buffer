@@ -4,7 +4,7 @@ use std::ops::{Add, Range};
 
 use pyo3::prelude::*;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RaggedBuffer<T> {
     data: Vec<T>,
     subarrays: Vec<Range<usize>>,
@@ -230,6 +230,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 features: self.features,
             })
         } else if self.features == rhs.features
+            && self.subarrays.len() == rhs.subarrays.len()
             && rhs
                 .subarrays
                 .iter()
