@@ -283,4 +283,18 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             ))),
         }
     }
+
+    pub fn flat_indices(&self) -> PyResult<RaggedBuffer<i64>> {
+        Ok(RaggedBuffer {
+            subarrays: self
+                .subarrays
+                .iter()
+                .map(|r| r.start / self.features..r.end / self.features)
+                .collect(),
+            data: (0..self.data.len() / self.features)
+                .map(|i| i as i64)
+                .collect(),
+            features: 1,
+        })
+    }
 }

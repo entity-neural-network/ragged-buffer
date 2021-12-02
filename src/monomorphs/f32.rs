@@ -63,6 +63,9 @@ impl RaggedBufferF32 {
     fn indices(&self, dim: usize) -> PyResult<RaggedBufferI64> {
         Ok(RaggedBufferI64(self.0.indices(dim)?))
     }
+    fn flat_indices(&self) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(self.0.flat_indices()?))
+    }
 }
 
 #[pyproto]
