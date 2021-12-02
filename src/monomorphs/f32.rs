@@ -89,10 +89,19 @@ impl PyObjectProtocol for RaggedBufferF32 {
     }
 }
 
+#[derive(FromPyObject)]
+pub enum RaggedBufferF32OrF32 {
+    RB(RaggedBufferF32),
+    Scalar(f32),
+}
+
 #[pyproto]
 impl PyNumberProtocol for RaggedBufferF32 {
-    fn __add__(lhs: RaggedBufferF32, rhs: RaggedBufferF32) -> PyResult<RaggedBufferF32> {
-        Ok(RaggedBufferF32(lhs.0.add(&rhs.0)?))
+    fn __add__(lhs: RaggedBufferF32, rhs: RaggedBufferF32OrF32) -> PyResult<RaggedBufferF32> {
+        match rhs {
+            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.add(&rhs.0)?)),
+            RaggedBufferF32OrF32::Scalar(rhs) => Ok(RaggedBufferF32(lhs.0.add_scalar(rhs))),
+        }
     }
 }
 

@@ -255,6 +255,14 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         }
     }
 
+    pub fn add_scalar(&self, scalar: T) -> RaggedBuffer<T> {
+        RaggedBuffer {
+            data: self.data.iter().map(|x| *x + scalar).collect(),
+            subarrays: self.subarrays.clone(),
+            features: self.features,
+        }
+    }
+
     pub fn indices(&self, dim: usize) -> PyResult<RaggedBuffer<i64>> {
         match dim {
             0 => {

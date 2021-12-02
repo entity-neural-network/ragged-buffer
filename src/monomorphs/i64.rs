@@ -88,10 +88,19 @@ impl PyObjectProtocol for RaggedBufferI64 {
     }
 }
 
+#[derive(FromPyObject)]
+pub enum RaggedBufferI64OrI64 {
+    RB(RaggedBufferI64),
+    Scalar(i64),
+}
+
 #[pyproto]
 impl PyNumberProtocol for RaggedBufferI64 {
-    fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64) -> PyResult<RaggedBufferI64> {
-        Ok(RaggedBufferI64(lhs.0.add(&rhs.0)?))
+    fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64OrI64) -> PyResult<RaggedBufferI64> {
+        match rhs {
+            RaggedBufferI64OrI64::RB(rhs) => Ok(RaggedBufferI64(lhs.0.add(&rhs.0)?)),
+            RaggedBufferI64OrI64::Scalar(rhs) => Ok(RaggedBufferI64(lhs.0.add_scalar(rhs))),
+        }
     }
 }
 
