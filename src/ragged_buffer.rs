@@ -254,4 +254,33 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             )))
         }
     }
+
+    pub fn indices(&self, dim: usize) -> PyResult<RaggedBuffer<i64>> {
+        match dim {
+            0 => {
+                let mut indices = Vec::with_capacity(self.data.len() / self.features);
+                for (index, subarray) in self.subarrays.iter().enumerate() {
+                    for _ in 0..(subarray.end - subarray.start) / self.features {
+                        indices.push(index as i64);
+                    }
+                }
+                Ok(RaggedBuffer {
+                    subarrays: self
+                        .subarrays
+                        .iter()
+                        .map(|r| r.start / self.features..r.end / self.features)
+                        .collect(),
+                    data: indices,
+                    features: 1,
+                })
+            }
+            1 => Err(pyo3::exceptions::PyValueError::new_err(
+                "Sequence indices not yet implemented",
+            )),
+            _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Invalid dimension {}",
+                dim
+            ))),
+        }
+    }
 }

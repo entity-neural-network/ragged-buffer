@@ -9,7 +9,7 @@ use super::IndicesOrInt;
 
 #[pyclass]
 #[derive(Clone)]
-pub struct RaggedBufferI64(RaggedBuffer<i64>);
+pub struct RaggedBufferI64(pub RaggedBuffer<i64>);
 
 #[pymethods]
 impl RaggedBufferI64 {
@@ -58,6 +58,9 @@ impl RaggedBufferI64 {
     }
     fn size2(&self) -> usize {
         self.0.size2()
+    }
+    fn indices(&self, dim: usize) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(self.0.indices(dim)?))
     }
 }
 

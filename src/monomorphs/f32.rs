@@ -3,13 +3,14 @@ use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
 
+use crate::monomorphs::RaggedBufferI64;
 use crate::ragged_buffer::RaggedBuffer;
 
 use super::IndicesOrInt;
 
 #[pyclass]
 #[derive(Clone)]
-pub struct RaggedBufferF32(RaggedBuffer<f32>);
+pub struct RaggedBufferF32(pub RaggedBuffer<f32>);
 
 #[pymethods]
 impl RaggedBufferF32 {
@@ -58,6 +59,9 @@ impl RaggedBufferF32 {
     }
     fn size2(&self) -> usize {
         self.0.size2()
+    }
+    fn indices(&self, dim: usize) -> PyResult<RaggedBufferI64> {
+        Ok(RaggedBufferI64(self.0.indices(dim)?))
     }
 }
 
