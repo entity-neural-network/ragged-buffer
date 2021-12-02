@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Generic, Protocol, Type, TypeVar, Union, cast, overload
+from typing import Any, Generic, TypeVar, Union, overload, List
 from numpy.typing import NDArray
 import numpy as np
 
@@ -39,3 +39,7 @@ class RaggedBuffer(Generic[ScalarType]):
 
 RaggedBufferF32 = RaggedBuffer[np.float32]
 RaggedBufferI64 = RaggedBuffer[np.int64]
+
+def cat(
+    buffers: List[RaggedBuffer[ScalarType]], dim: int = 0
+) -> RaggedBuffer[ScalarType]: ...

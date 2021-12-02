@@ -51,9 +51,7 @@ def cat(
         elif isinstance(buffers[0], RaggedBufferI64):
             return RaggedBufferI64.cat(buffers[0], buffers[1], dim)
         else:
-            raise ValueError(
-                f"Unsupported dtype {buffers[0].dtype}. Only float32 and int64 are currently supported."
-            )
+            raise TypeError(f"Type {type(buffers[0])} is not a RaggedBuffer")
     else:
         raise NotImplementedError(
             "Concatenating more than 2 buffers is not yet implemented"
