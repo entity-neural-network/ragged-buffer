@@ -66,6 +66,15 @@ impl RaggedBufferF32 {
     fn flat_indices(&self) -> PyResult<RaggedBufferI64> {
         Ok(RaggedBufferI64(self.0.flat_indices()?))
     }
+    #[classmethod]
+    fn cat(
+        _cls: &PyType,
+        lhs: &RaggedBufferF32,
+        rhs: &RaggedBufferF32,
+        dim: usize,
+    ) -> PyResult<Self> {
+        Ok(RaggedBufferF32(RaggedBuffer::cat(&lhs.0, &rhs.0, dim)?))
+    }
 }
 
 #[pyproto]

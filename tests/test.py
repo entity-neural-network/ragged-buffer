@@ -1,6 +1,7 @@
 from typing import TypeVar
 import numpy as np
 from ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBuffer
+import ragged_buffer
 
 rba = RaggedBufferF32(3)
 
@@ -133,3 +134,28 @@ assert np.all(
     rb6[2].as_array()
     == np.array([[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]], dtype=np.float32)
 ), f"{rb6[2]}"
+
+
+entities1 = RaggedBufferF32.from_flattened(
+    np.zeros((6, 64), dtype=np.float32), np.array([3, 1, 2], dtype=np.int64)
+)
+entities2 = RaggedBufferF32.from_flattened(
+    np.zeros((3, 64), dtype=np.float32), np.array([1, 2, 0], dtype=np.int64)
+)
+assert np.all(entities1.size1() == np.array([3, 1, 2], dtype=np.int64))
+assert np.all(entities2.size1() == np.array([1, 2, 0], dtype=np.int64))
+print("TEST 1 PASSED")
+
+bi1 = entities1.indices(0).as_array().flatten()
+bi2 = entities2.indices(0).as_array().flatten()
+assert np.all(bi1 == np.array([0, 0, 0, 1, 2, 2], dtype=np.int64)), f"{bi1}"
+assert np.all(bi2 == np.array([0, 1, 1], dtype=np.int64)), f"{bi2}"
+print("TEST 2 PASSED")
+
+flati1 = entities1.flat_indices()
+print("TEST 3 PASSED")
+flati2 = entities2.flat_indices() + 6
+print("TEST 4 PASSED")
+flat = ragged_buffer.cat([flati1, flati2], dim=1).as_array().flatten()
+assert np.all(flat == np.array([0, 1, 2, 6, 3, 7, 8, 4, 5], dtype=np.int64)), f"{flat}"
+print("TEST 5 PASSED")

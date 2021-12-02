@@ -305,4 +305,67 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             features: 1,
         })
     }
+
+    pub fn cat(
+        lhs: &RaggedBuffer<T>,
+        rhs: &RaggedBuffer<T>,
+        dim: usize,
+    ) -> PyResult<RaggedBuffer<T>> {
+        match dim {
+            0 => {
+                let mut data = Vec::with_capacity(lhs.data.len() + rhs.data.len());
+                data.extend_from_slice(&lhs.data);
+                data.extend_from_slice(&rhs.data);
+                Ok(RaggedBuffer {
+                    data,
+                    subarrays: lhs
+                        .subarrays
+                        .iter()
+                        .cloned()
+                        .chain(
+                            rhs.subarrays
+                                .iter()
+                                .map(|r| r.start + lhs.data.len()..r.end + lhs.data.len()),
+                        )
+                        .collect(),
+                    features: lhs.features,
+                })
+            }
+            1 => {
+                if lhs.subarrays.len() != rhs.subarrays.len() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "Size of dimension 1 must match for all buffers, got {} != {}",
+                        lhs.subarrays.len(),
+                        rhs.subarrays.len()
+                    )));
+                }
+                if lhs.features != rhs.features {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "Number of features must match for all buffers, got {} != {}",
+                        lhs.features, rhs.features
+                    )));
+                }
+                let mut data = Vec::with_capacity(lhs.data.len() + rhs.data.len());
+                let mut subarrays = Vec::with_capacity(lhs.subarrays.len());
+                for (lhs_subarray, rhs_subarray) in lhs.subarrays.iter().zip(rhs.subarrays.iter()) {
+                    let start = data.len();
+                    data.extend_from_slice(&lhs.data[lhs_subarray.clone()]);
+                    data.extend_from_slice(&rhs.data[rhs_subarray.clone()]);
+                    subarrays.push(start..data.len());
+                }
+                Ok(RaggedBuffer {
+                    data,
+                    subarrays,
+                    features: lhs.features,
+                })
+            }
+            2 => Err(pyo3::exceptions::PyValueError::new_err(
+                "Concatenation along dimension 2 not yet implemented",
+            )),
+            _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Invalid dimension {}, RaggedBuffer only has 3 dimensions",
+                dim
+            ))),
+        }
+    }
 }

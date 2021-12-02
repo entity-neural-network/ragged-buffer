@@ -1,4 +1,4 @@
-from typing import Any, Generic, Protocol, Type, TypeVar, Union, cast, overload
+from typing import Any, Generic, List, Protocol, Type, TypeVar, Union, cast, overload
 from numpy.typing import NDArray
 import numpy as np
 
@@ -36,3 +36,26 @@ class RaggedBuffer(Generic[ScalarType]):
             raise ValueError(
                 f"Unsupported dtype {flattened.dtype}. Only float32 and int64 are currently supported."
             )
+
+
+def cat(
+    buffers: List[RaggedBuffer[ScalarType]], dim: int = 0
+) -> RaggedBuffer[ScalarType]:
+    if len(buffers) == 0:
+        raise ValueError("Can't concatenate an empty list of buffers")
+    if len(buffers) == 1:
+        return buffers[0]
+    if len(buffers) == 2:
+        if isinstance(buffers[0], RaggedBufferF32):
+            return RaggedBufferF32.cat(buffers[0], buffers[1], dim)
+        elif isinstance(buffers[0], RaggedBufferI64):
+            return RaggedBufferI64.cat(buffers[0], buffers[1], dim)
+        else:
+            raise ValueError(
+                f"Unsupported dtype {buffers[0].dtype}. Only float32 and int64 are currently supported."
+            )
+    else:
+        raise NotImplementedError(
+            "Concatenating more than 2 buffers is not yet implemented"
+        )
+
