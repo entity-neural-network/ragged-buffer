@@ -159,6 +159,6 @@ print("TEST 4 PASSED")
 flat = ragged_buffer.cat([flati1, flati2, flati1, flati2], dim=1).as_array().flatten()
 assert np.all(
     flat
-    == np.array([0, 1, 2, 6, 0, 1, 2, 6, 3, 7, 8, 4, 5, 3, 7, 8, 4, 5], dtype=np.int64),
+    == np.array([0, 1, 2, 6, 0, 1, 2, 6, 3, 7, 8, 3, 7, 8, 4, 5, 4, 5], dtype=np.int64),
 ), f"{flat} {ragged_buffer.cat([flati1, flati2, flati1, flati2], dim=1)}"
 print("TEST 5 PASSED")
