@@ -131,6 +131,17 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         self.subarrays.len()
     }
 
+    pub fn lengths<'a>(
+        &self,
+        py: Python<'a>,
+    ) -> &'a numpy::PyArray<usize, numpy::ndarray::Dim<[usize; 1]>> {
+        self.subarrays
+            .iter()
+            .map(|r| (r.end - r.start) / self.features)
+            .collect::<Vec<_>>()
+            .to_pyarray(py)
+    }
+
     pub fn size1(&self, i: usize) -> PyResult<usize> {
         if i >= self.subarrays.len() {
             Err(pyo3::exceptions::PyIndexError::new_err(format!(

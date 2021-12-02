@@ -50,8 +50,11 @@ impl RaggedBufferF32 {
     fn size0(&self) -> usize {
         self.0.size0()
     }
-    fn size1(&self, i: usize) -> PyResult<usize> {
-        self.0.size1(i)
+    fn size1(&self, py: Python, i: Option<usize>) -> PyResult<PyObject> {
+        match i {
+            Some(i) => self.0.size1(i).map(|s| s.into_py(py)),
+            None => Ok(self.0.lengths(py).into_py(py)),
+        }
     }
     fn size2(&self) -> usize {
         self.0.size2()
