@@ -65,14 +65,13 @@ impl RaggedBufferI64 {
     fn flat_indices(&self) -> PyResult<RaggedBufferI64> {
         Ok(RaggedBufferI64(self.0.flat_indices()?))
     }
+    // TODO: eliminate copy
     #[classmethod]
-    fn cat(
-        _cls: &PyType,
-        lhs: &RaggedBufferI64,
-        rhs: &RaggedBufferI64,
-        dim: usize,
-    ) -> PyResult<Self> {
-        Ok(RaggedBufferI64(RaggedBuffer::cat(&lhs.0, &rhs.0, dim)?))
+    fn cat(_cls: &PyType, buffers: Vec<RaggedBufferI64>, dim: usize) -> PyResult<Self> {
+        Ok(RaggedBufferI64(RaggedBuffer::cat(
+            &buffers.iter().map(|b| &b.0).collect::<Vec<_>>(),
+            dim,
+        )?))
     }
 }
 

@@ -306,57 +306,86 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         })
     }
 
-    pub fn cat(
-        lhs: &RaggedBuffer<T>,
-        rhs: &RaggedBuffer<T>,
-        dim: usize,
-    ) -> PyResult<RaggedBuffer<T>> {
+    pub fn cat(buffers: &[&RaggedBuffer<T>], dim: usize) -> PyResult<RaggedBuffer<T>> {
         match dim {
             0 => {
-                let mut data = Vec::with_capacity(lhs.data.len() + rhs.data.len());
-                data.extend_from_slice(&lhs.data);
-                data.extend_from_slice(&rhs.data);
-                Ok(RaggedBuffer {
-                    data,
-                    subarrays: lhs
-                        .subarrays
-                        .iter()
-                        .cloned()
-                        .chain(
-                            rhs.subarrays
-                                .iter()
-                                .map(|r| r.start + lhs.data.len()..r.end + lhs.data.len()),
-                        )
-                        .collect(),
-                    features: lhs.features,
-                })
-            }
-            1 => {
-                if lhs.subarrays.len() != rhs.subarrays.len() {
+                if buffers.iter().any(|b| b.features != buffers[0].features) {
                     return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                        "Size of dimension 1 must match for all buffers, got {} != {}",
-                        lhs.subarrays.len(),
-                        rhs.subarrays.len()
+                        "All buffers must have the same number of features, but found {}",
+                        buffers
+                            .iter()
+                            .map(|b| b.features.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )));
                 }
-                if lhs.features != rhs.features {
-                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                        "Number of features must match for all buffers, got {} != {}",
-                        lhs.features, rhs.features
-                    )));
+                let mut data = Vec::with_capacity(buffers.iter().map(|b| b.data.len()).sum());
+                for buffer in buffers {
+                    data.extend_from_slice(&buffer.data);
                 }
-                let mut data = Vec::with_capacity(lhs.data.len() + rhs.data.len());
-                let mut subarrays = Vec::with_capacity(lhs.subarrays.len());
-                for (lhs_subarray, rhs_subarray) in lhs.subarrays.iter().zip(rhs.subarrays.iter()) {
-                    let start = data.len();
-                    data.extend_from_slice(&lhs.data[lhs_subarray.clone()]);
-                    data.extend_from_slice(&rhs.data[rhs_subarray.clone()]);
-                    subarrays.push(start..data.len());
+                let mut subarrays =
+                    Vec::with_capacity(buffers.iter().map(|b| b.subarrays.len()).sum());
+                let mut offset = 0;
+                for buffer in buffers {
+                    subarrays.extend_from_slice(
+                        &buffer
+                            .subarrays
+                            .iter()
+                            .map(|r| {
+                                let start = r.start + offset;
+                                let end = r.end + offset;
+                                start..end
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+                    offset += buffer.data.len();
                 }
                 Ok(RaggedBuffer {
                     data,
                     subarrays,
-                    features: lhs.features,
+                    features: buffers[0].features,
+                })
+            }
+            1 => {
+                if buffers
+                    .iter()
+                    .any(|b| b.subarrays.len() != buffers[0].subarrays.len())
+                {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "All buffers must have the same number of subarrays, but found {}",
+                        buffers
+                            .iter()
+                            .map(|b| b.subarrays.len().to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )));
+                }
+                if buffers.iter().any(|b| b.features != buffers[0].features) {
+                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                        "All buffers must have the same number of features, but found {}",
+                        buffers
+                            .iter()
+                            .map(|b| b.features.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )));
+                }
+                let mut data = Vec::with_capacity(buffers.iter().map(|b| b.data.len()).sum());
+                let mut subarrays =
+                    Vec::with_capacity(buffers.iter().map(|b| b.subarrays.len()).sum());
+                let mut start = 0;
+                for i in 0..buffers[0].subarrays.len() {
+                    for buffer in buffers {
+                        let subarray = &buffer.subarrays[i];
+                        data.extend_from_slice(&buffer.data[subarray.clone()]);
+                    }
+                    subarrays.push(start..data.len());
+                    start = data.len();
+                }
+                Ok(RaggedBuffer {
+                    data,
+                    subarrays,
+                    features: buffers[0].features,
                 })
             }
             2 => Err(pyo3::exceptions::PyValueError::new_err(

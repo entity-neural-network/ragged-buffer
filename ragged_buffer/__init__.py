@@ -43,17 +43,10 @@ def cat(
 ) -> RaggedBuffer[ScalarType]:
     if len(buffers) == 0:
         raise ValueError("Can't concatenate an empty list of buffers")
-    if len(buffers) == 1:
-        return buffers[0]
-    if len(buffers) == 2:
+    else:
         if isinstance(buffers[0], RaggedBufferF32):
-            return RaggedBufferF32.cat(buffers[0], buffers[1], dim)
+            return RaggedBufferF32.cat(buffers, dim)
         elif isinstance(buffers[0], RaggedBufferI64):
-            return RaggedBufferI64.cat(buffers[0], buffers[1], dim)
+            return RaggedBufferI64.cat(buffers, dim)
         else:
             raise TypeError(f"Type {type(buffers[0])} is not a RaggedBuffer")
-    else:
-        raise NotImplementedError(
-            "Concatenating more than 2 buffers is not yet implemented"
-        )
-
