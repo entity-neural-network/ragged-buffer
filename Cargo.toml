@@ -12,3 +12,6 @@ crate-type = ["cdylib"]
 [dependencies]
 numpy = "0.15"
 pyo3 = { version = "0.15", features = ["extension-module"] }
+
+[profile.release]
+debug = true
