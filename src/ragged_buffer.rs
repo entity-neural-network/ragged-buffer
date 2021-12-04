@@ -1,4 +1,4 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
 use std::fmt::{Display, Write};
 use std::ops::{Add, Range};
 
@@ -9,6 +9,7 @@ pub struct RaggedBuffer<T> {
     data: Vec<T>,
     subarrays: Vec<Range<usize>>,
     features: usize,
+    items: usize,
 }
 
 impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> RaggedBuffer<T> {
@@ -17,6 +18,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             data: Vec::new(),
             subarrays: Vec::new(),
             features,
+            items: 0,
         }
     }
 
@@ -26,27 +28,28 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         RaggedBuffer {
             data: data.iter().cloned().collect(),
             subarrays: (0..data.shape()[0])
-                .map(|i| i * features * data.shape()[1]..(i + 1) * features * data.shape()[1])
+                .map(|i| i * data.shape()[1]..(i + 1) * data.shape()[1])
                 .collect(),
             features,
+            items: data.shape()[0] * data.shape()[1],
         }
     }
 
-    pub fn from_flattened(data: PyReadonlyArray2<T>, lenghts: PyReadonlyArray1<i64>) -> Self {
+    pub fn from_flattened(data: PyReadonlyArray2<T>, lengths: PyReadonlyArray1<i64>) -> Self {
         let data = data.as_array();
-        let lenghts = lenghts.as_array();
+        let lenghts = lengths.as_array();
         let features = data.shape()[1];
         let mut subarrays = Vec::new();
-        let mut data_index = 0;
+        let mut item = 0;
         for len in lenghts.iter().cloned() {
-            let l = len as usize * features;
-            subarrays.push(data_index..(data_index + l));
-            data_index += l;
+            subarrays.push(item..(item + len as usize));
+            item += len as usize;
         }
         RaggedBuffer {
             data: data.iter().cloned().collect(),
             subarrays,
             features,
+            items: item,
         }
     }
 
@@ -57,10 +60,11 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 self.features, other.features
             )));
         }
-        let len = self.data.len();
+        let item = self.items;
         self.data.extend(other.data.iter());
         self.subarrays
-            .extend(other.subarrays.iter().map(|r| r.start + len..r.end + len));
+            .extend(other.subarrays.iter().map(|r| r.start + item..r.end + item));
+        self.items += other.items;
         Ok(())
     }
 
@@ -79,12 +83,16 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             .unwrap()
     }
 
-    pub fn push(&mut self, x: PyReadonlyArrayDyn<T>) {
+    pub fn push(&mut self, x: PyReadonlyArray2<T>) -> PyResult<()> {
         let data = x.as_array();
-        assert!(data.len() % self.features == 0);
-        let start = self.data.len();
-        let len = data.len();
-        self.subarrays.push(start..(start + len));
+        if data.dim().1 != self.features {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Features mismatch: {} != {}",
+                self.features,
+                data.dim().1
+            )));
+        }
+        self.subarrays.push(self.items..(self.items + data.dim().0));
         match data.as_slice() {
             Some(slice) => self.data.extend_from_slice(slice),
             None => {
@@ -93,6 +101,8 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 }
             }
         }
+        self.items += data.dim().0;
+        Ok(())
     }
 
     pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBuffer<T>> {
@@ -101,29 +111,33 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             pyo3::exceptions::PyValueError::new_err("Indices must be a **contiguous** 1D array")
         })?;
         let mut subarrays = Vec::with_capacity(indices.len());
-        let mut len = 0usize;
+        let mut item = 0usize;
         for i in indices {
             let sublen = self.subarrays[*i as usize].end - self.subarrays[*i as usize].start;
-            subarrays.push(len..(len + sublen));
-            len += sublen;
+            subarrays.push(item..(item + sublen));
+            item += sublen;
         }
-        let mut data = Vec::with_capacity(len);
+        let mut data = Vec::with_capacity(item * self.features);
         for i in indices {
-            data.extend_from_slice(&self.data[self.subarrays[*i as usize].clone()]);
+            let Range { start, end } = self.subarrays[*i as usize];
+            data.extend_from_slice(&self.data[start * self.features..end * self.features]);
         }
         Ok(RaggedBuffer {
             data,
             subarrays,
             features: self.features,
+            items: item,
         })
     }
 
     pub fn get(&self, i: usize) -> RaggedBuffer<T> {
         let subarray = self.subarrays[i].clone();
+        let Range { start, end } = subarray;
         RaggedBuffer {
             subarrays: vec![0..subarray.len()],
-            data: self.data[subarray].to_vec(),
+            data: self.data[start * self.features..end * self.features].to_vec(),
             features: self.features,
+            items: subarray.len(),
         }
     }
 
@@ -137,7 +151,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
     ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>> {
         self.subarrays
             .iter()
-            .map(|r| ((r.end - r.start) / self.features) as i64)
+            .map(|r| (r.end - r.start) as i64)
             .collect::<Vec<_>>()
             .to_pyarray(py)
     }
@@ -149,7 +163,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 i
             )))
         } else {
-            Ok((self.subarrays[i].end - self.subarrays[i].start) / self.features)
+            Ok(self.subarrays[i].end - self.subarrays[i].start)
         }
     }
 
@@ -162,15 +176,16 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         array.push_str("RaggedBuffer([");
         array.push('\n');
         for range in &self.subarrays {
+            let slice = range.start * self.features..range.end * self.features;
             if range.start == range.end {
                 writeln!(array, "    [],").unwrap();
-            } else if range.end - range.start == self.features {
-                writeln!(array, "    [{:?}],", &self.data[range.clone()]).unwrap();
+            } else if range.start + 1 == range.end {
+                writeln!(array, "    [{:?}],", &self.data[slice]).unwrap();
             } else {
                 writeln!(array, "    [").unwrap();
-                for i in range.clone() {
+                for i in slice.clone() {
                     if i % self.features == 0 {
-                        if i != range.start {
+                        if i != slice.start {
                             writeln!(array, "],").unwrap();
                         }
                         write!(array, "        [").unwrap();
@@ -206,18 +221,16 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 data,
                 subarrays: self.subarrays.clone(),
                 features: self.features,
+                items: self.items,
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
-            && self
-                .subarrays
-                .iter()
-                .all(|r| (r.end - r.start) == self.features)
+            && self.subarrays.iter().all(|r| r.end - r.start == 1)
         {
             let mut data = Vec::with_capacity(self.data.len());
             for (subarray, rhs_subarray) in self.subarrays.iter().zip(rhs.subarrays.iter()) {
-                let mut i = subarray.start;
-                while i < subarray.end {
+                let mut i = subarray.start * self.features;
+                while i < subarray.end * self.features {
                     for j in rhs_subarray.clone() {
                         data.push(self.data[i] + rhs.data[j]);
                     }
@@ -228,13 +241,11 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 data,
                 subarrays: self.subarrays.clone(),
                 features: self.features,
+                items: self.items,
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
-            && rhs
-                .subarrays
-                .iter()
-                .all(|r| (r.end - r.start) == self.features)
+            && rhs.subarrays.iter().all(|r| r.end - r.start == 1)
         {
             rhs.add(self)
         } else {
@@ -243,13 +254,13 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 self.size0(),
                 self.subarrays
                     .iter()
-                    .map(|r| (r.end - r.start) / self.features)
+                    .map(|r| r.end - r.start)
                     .collect::<Vec<_>>(),
                 self.size2(),
                 rhs.size0(),
                 rhs.subarrays
                     .iter()
-                    .map(|r| (r.end - r.start) / self.features)
+                    .map(|r| r.end - r.start)
                     .collect::<Vec<_>>(),
                 rhs.size2(),
             )))
@@ -261,26 +272,24 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             data: self.data.iter().map(|x| *x + scalar).collect(),
             subarrays: self.subarrays.clone(),
             features: self.features,
+            items: self.items,
         }
     }
 
     pub fn indices(&self, dim: usize) -> PyResult<RaggedBuffer<i64>> {
         match dim {
             0 => {
-                let mut indices = Vec::with_capacity(self.data.len() / self.features);
+                let mut indices = Vec::with_capacity(self.items);
                 for (index, subarray) in self.subarrays.iter().enumerate() {
-                    for _ in 0..(subarray.end - subarray.start) / self.features {
+                    for _ in subarray.clone() {
                         indices.push(index as i64);
                     }
                 }
                 Ok(RaggedBuffer {
-                    subarrays: self
-                        .subarrays
-                        .iter()
-                        .map(|r| r.start / self.features..r.end / self.features)
-                        .collect(),
+                    subarrays: self.subarrays.clone(),
                     data: indices,
                     features: 1,
+                    items: self.items,
                 })
             }
             1 => Err(pyo3::exceptions::PyValueError::new_err(
@@ -295,15 +304,10 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
 
     pub fn flat_indices(&self) -> PyResult<RaggedBuffer<i64>> {
         Ok(RaggedBuffer {
-            subarrays: self
-                .subarrays
-                .iter()
-                .map(|r| r.start / self.features..r.end / self.features)
-                .collect(),
-            data: (0..self.data.len() / self.features)
-                .map(|i| i as i64)
-                .collect(),
+            subarrays: self.subarrays.clone(),
+            data: (0..self.items).map(|i| i as i64).collect(),
             features: 1,
+            items: self.items,
         })
     }
 
@@ -326,25 +330,26 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 }
                 let mut subarrays =
                     Vec::with_capacity(buffers.iter().map(|b| b.subarrays.len()).sum());
-                let mut offset = 0;
+                let mut item = 0;
                 for buffer in buffers {
                     subarrays.extend_from_slice(
                         &buffer
                             .subarrays
                             .iter()
                             .map(|r| {
-                                let start = r.start + offset;
-                                let end = r.end + offset;
+                                let start = r.start + item;
+                                let end = r.end + item;
                                 start..end
                             })
                             .collect::<Vec<_>>(),
                     );
-                    offset += buffer.data.len();
+                    item += buffer.items;
                 }
                 Ok(RaggedBuffer {
                     data,
                     subarrays,
                     features: buffers[0].features,
+                    items: item,
                 })
             }
             1 => {
@@ -374,19 +379,27 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                 let mut data = Vec::with_capacity(buffers.iter().map(|b| b.data.len()).sum());
                 let mut subarrays =
                     Vec::with_capacity(buffers.iter().map(|b| b.subarrays.len()).sum());
-                let mut start = 0;
+                let mut item = 0;
+                let mut last_item = 0;
                 for i in 0..buffers[0].subarrays.len() {
                     for buffer in buffers {
-                        let subarray = &buffer.subarrays[i];
-                        data.extend_from_slice(&buffer.data[subarray.clone()]);
+                        let Range { start, end } = &buffer.subarrays[i];
+                        data.extend_from_slice(
+                            &buffer.data[start * buffer.features..end * buffer.features],
+                        );
+                        item += end - start;
                     }
-                    subarrays.push(start..data.len());
-                    start = data.len();
+                    subarrays.push(Range {
+                        start: last_item,
+                        end: item,
+                    });
+                    last_item = item;
                 }
                 Ok(RaggedBuffer {
                     data,
                     subarrays,
                     features: buffers[0].features,
+                    items: item,
                 })
             }
             2 => Err(pyo3::exceptions::PyValueError::new_err(

@@ -1,4 +1,4 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3};
 use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
@@ -30,8 +30,8 @@ impl RaggedBufferF32 {
     ) -> Self {
         RaggedBufferF32(RaggedBuffer::from_flattened(flattened, lengths))
     }
-    fn push(&mut self, features: PyReadonlyArrayDyn<f32>) {
-        self.0.push(features);
+    fn push(&mut self, items: PyReadonlyArray2<f32>) -> PyResult<()> {
+        self.0.push(items)
     }
 
     fn clear(&mut self) {

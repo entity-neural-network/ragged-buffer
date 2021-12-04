@@ -26,7 +26,7 @@ rba.push(
         dtype=np.float32,
     )
 )
-rba.push(np.array([[]], dtype=np.float32))
+rba.push(np.array([], dtype=np.float32).reshape(0, 3))
 
 assert generic_len(rba) == 27, f"Expected 27 elements, got {generic_len(rba)}"
 
@@ -50,7 +50,7 @@ expected = """RaggedBuffer([
 ], '4 * var * 3 * f32)"""
 
 
-assert str(rba) == expected
+assert str(rba) == expected, str(rba)
 flattened = np.array(
     [
         [2.0, 3.0, 1.0],
@@ -178,3 +178,8 @@ except ValueError as e:
     pass
 else:
     assert False, "Did not raise ValueError"
+
+
+zerofeats = RaggedBufferF32(features=0)
+zerofeats.push(np.zeros((1, 0), dtype=np.float32))
+zerofeats.push(np.zeros((0, 0), dtype=np.float32))
