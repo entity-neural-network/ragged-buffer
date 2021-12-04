@@ -183,3 +183,4 @@ else:
 zerofeats = RaggedBufferF32(features=0)
 zerofeats.push(np.zeros((1, 0), dtype=np.float32))
 zerofeats.push(np.zeros((0, 0), dtype=np.float32))
+assert zerofeats.as_array().shape == (1, 0), f"{zerofeats.as_array().shape}"

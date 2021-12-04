@@ -79,7 +79,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
     ) -> &'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>> {
         self.data
             .to_pyarray(py)
-            .reshape((self.data.len() / self.features, self.features))
+            .reshape((self.items, self.features))
             .unwrap()
     }
 
@@ -225,16 +225,16 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
-            && self.subarrays.iter().all(|r| r.end - r.start == 1)
+            && rhs.subarrays.iter().all(|r| r.end - r.start == 1)
         {
             let mut data = Vec::with_capacity(self.data.len());
             for (subarray, rhs_subarray) in self.subarrays.iter().zip(rhs.subarrays.iter()) {
-                let mut i = subarray.start * self.features;
-                while i < subarray.end * self.features {
-                    for j in rhs_subarray.clone() {
-                        data.push(self.data[i] + rhs.data[j]);
+                for item in subarray.clone() {
+                    let lhs_offset = item * self.features;
+                    let rhs_offset = rhs_subarray.start * self.features;
+                    for i in 0..self.features {
+                        data.push(self.data[lhs_offset + i] + rhs.data[rhs_offset + i]);
                     }
-                    i += self.features;
                 }
             }
             Ok(RaggedBuffer {
@@ -245,7 +245,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
-            && rhs.subarrays.iter().all(|r| r.end - r.start == 1)
+            && self.subarrays.iter().all(|r| r.end - r.start == 1)
         {
             rhs.add(self)
         } else {
