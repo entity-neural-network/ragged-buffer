@@ -71,6 +71,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
     pub fn clear(&mut self) {
         self.data.clear();
         self.subarrays.clear();
+        self.items = 0;
     }
 
     pub fn as_array<'a>(

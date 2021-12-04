@@ -82,6 +82,7 @@ assert rba == RaggedBufferF32.from_flattened(
     flattened=np.concatenate([flattened, np.zeros((5, 3), dtype=np.float32)]),
     lengths=np.array([2, 3, 4, 0, 2, 3], dtype=np.int64),
 )
+rba[np.random.permutation(rba.size0())]
 
 assert rba.size0() == 6
 assert rba.size1(0) == 2
@@ -92,6 +93,9 @@ assert rba.size1(4) == 2
 assert rba.size1(5) == 3
 assert rba.size2() == 3
 
+rba.clear()
+assert rba == RaggedBufferF32(3)
+
 rb3 = RaggedBufferI64(1)
 rb3.push(np.array([[0]], dtype=np.int64))
 rb3.push(np.array([[0], [1], [2]], dtype=np.int64))
@@ -100,6 +104,8 @@ assert rb3 == RaggedBufferI64.from_flattened(
     flattened=np.array([[0], [0], [1], [2], [0], [5]], dtype=np.int64),
     lengths=np.array([1, 3, 2], dtype=np.int64),
 )
+# Shuffle
+rb3[np.random.permutation(rb3.size0())]
 
 rb4 = RaggedBufferI64.from_array(np.array([0, 3, 10], dtype=np.int64).reshape(3, 1, 1))
 assert rb4 == RaggedBufferI64.from_flattened(
