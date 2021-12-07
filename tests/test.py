@@ -121,6 +121,11 @@ assert rb5 * 10 == RaggedBufferI64.from_flattened(
     flattened=np.array([[0], [30], [40], [50], [100], [150]], dtype=np.int64),
     lengths=np.array([1, 3, 2], dtype=np.int64),
 )
+assert rb5.indices(1) == RaggedBufferI64.from_flattened(
+    flattened=np.array([[0], [0], [1], [2], [0], [1]], dtype=np.int64),
+    lengths=np.array([1, 3, 2], dtype=np.int64),
+)
+
 
 rb6 = RaggedBufferF32.from_flattened(
     np.array(

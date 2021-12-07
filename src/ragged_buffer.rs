@@ -315,9 +315,20 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                     items: self.items,
                 })
             }
-            1 => Err(pyo3::exceptions::PyValueError::new_err(
-                "Sequence indices not yet implemented",
-            )),
+            1 => {
+                let mut indices = Vec::with_capacity(self.items);
+                for subarray in &self.subarrays {
+                    for (i, _) in subarray.clone().enumerate() {
+                        indices.push(i as i64);
+                    }
+                }
+                Ok(RaggedBuffer {
+                    subarrays: self.subarrays.clone(),
+                    data: indices,
+                    features: 1,
+                    items: self.items,
+                })
+            }
             _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Invalid dimension {}",
                 dim
