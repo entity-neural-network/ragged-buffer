@@ -4,7 +4,7 @@ use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
 
 use crate::monomorphs::RaggedBufferI64;
-use crate::ragged_buffer::RaggedBuffer;
+use crate::ragged_buffer::{BinOpAdd, BinOpMul, RaggedBuffer};
 
 use super::IndicesOrInt;
 
@@ -106,8 +106,18 @@ pub enum RaggedBufferF32OrF32 {
 impl PyNumberProtocol for RaggedBufferF32 {
     fn __add__(lhs: RaggedBufferF32, rhs: RaggedBufferF32OrF32) -> PyResult<RaggedBufferF32> {
         match rhs {
-            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.add(&rhs.0)?)),
-            RaggedBufferF32OrF32::Scalar(rhs) => Ok(RaggedBufferF32(lhs.0.add_scalar(rhs))),
+            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.binop::<BinOpAdd>(&rhs.0)?)),
+            RaggedBufferF32OrF32::Scalar(rhs) => {
+                Ok(RaggedBufferF32(lhs.0.op_scalar::<BinOpAdd>(rhs)))
+            }
+        }
+    }
+    fn __mul__(lhs: RaggedBufferF32, rhs: RaggedBufferF32OrF32) -> PyResult<RaggedBufferF32> {
+        match rhs {
+            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.binop::<BinOpMul>(&rhs.0)?)),
+            RaggedBufferF32OrF32::Scalar(rhs) => {
+                Ok(RaggedBufferF32(lhs.0.op_scalar::<BinOpMul>(rhs)))
+            }
         }
     }
 }

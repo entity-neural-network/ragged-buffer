@@ -1,6 +1,6 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
 use std::fmt::{Display, Write};
-use std::ops::{Add, Range};
+use std::ops::{Add, Mul, Range};
 
 use pyo3::prelude::*;
 
@@ -10,6 +10,28 @@ pub struct RaggedBuffer<T> {
     subarrays: Vec<Range<usize>>,
     features: usize,
     items: usize,
+}
+
+pub trait BinOp<T> {
+    fn op(lhs: T, rhs: T) -> T;
+}
+
+pub struct BinOpAdd;
+
+impl<T: Add<T, Output = T>> BinOp<T> for BinOpAdd {
+    #[inline]
+    fn op(lhs: T, rhs: T) -> T {
+        lhs + rhs
+    }
+}
+
+pub struct BinOpMul;
+
+impl<T: Mul<T, Output = T>> BinOp<T> for BinOpMul {
+    #[inline]
+    fn op(lhs: T, rhs: T) -> T {
+        lhs * rhs
+    }
 }
 
 impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> RaggedBuffer<T> {
@@ -212,11 +234,11 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         Ok(array)
     }
 
-    pub fn add(&self, rhs: &RaggedBuffer<T>) -> PyResult<RaggedBuffer<T>> {
+    pub fn binop<Op: BinOp<T>>(&self, rhs: &RaggedBuffer<T>) -> PyResult<RaggedBuffer<T>> {
         if self.features == rhs.features && self.subarrays == rhs.subarrays {
             let mut data = Vec::with_capacity(self.data.len());
             for i in 0..self.data.len() {
-                data.push(self.data[i] + rhs.data[i]);
+                data.push(Op::op(self.data[i], rhs.data[i]));
             }
             Ok(RaggedBuffer {
                 data,
@@ -234,7 +256,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
                     let lhs_offset = item * self.features;
                     let rhs_offset = rhs_subarray.start * self.features;
                     for i in 0..self.features {
-                        data.push(self.data[lhs_offset + i] + rhs.data[rhs_offset + i]);
+                        data.push(Op::op(self.data[lhs_offset + i], rhs.data[rhs_offset + i]));
                     }
                 }
             }
@@ -248,7 +270,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             && self.subarrays.len() == rhs.subarrays.len()
             && self.subarrays.iter().all(|r| r.end - r.start == 1)
         {
-            rhs.add(self)
+            rhs.binop::<Op>(self)
         } else {
             Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Dimensions mismatch: ({}, {:?}, {}) != ({}, {:?}, {})",
@@ -268,9 +290,9 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         }
     }
 
-    pub fn add_scalar(&self, scalar: T) -> RaggedBuffer<T> {
+    pub fn op_scalar<Op: BinOp<T>>(&self, scalar: T) -> RaggedBuffer<T> {
         RaggedBuffer {
-            data: self.data.iter().map(|x| *x + scalar).collect(),
+            data: self.data.iter().map(|x| Op::op(*x, scalar)).collect(),
             subarrays: self.subarrays.clone(),
             features: self.features,
             items: self.items,

@@ -117,6 +117,10 @@ assert np.all(
     rb5.as_array() == np.array([[0], [3], [4], [5], [10], [15]], dtype=np.int64)
 ), f"{rb5.as_array()}"
 assert rb3 + rb4 == rb4 + rb3
+assert rb5 * 10 == RaggedBufferI64.from_flattened(
+    flattened=np.array([[0], [30], [40], [50], [100], [150]], dtype=np.int64),
+    lengths=np.array([1, 3, 2], dtype=np.int64),
+)
 
 rb6 = RaggedBufferF32.from_flattened(
     np.array(
