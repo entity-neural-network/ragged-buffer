@@ -46,6 +46,7 @@ class RaggedBuffer(Generic[ScalarType]):
 
 RaggedBufferF32 = RaggedBuffer[np.float32]
 RaggedBufferI64 = RaggedBuffer[np.int64]
+RaggedBufferBool = RaggedBuffer[np.bool_]
 
 def cat(
     buffers: List[RaggedBuffer[ScalarType]], dim: int = 0

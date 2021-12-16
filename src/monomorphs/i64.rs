@@ -1,9 +1,9 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
 use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
-use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
+use pyo3::{prelude::*, PyMappingProtocol, PyObjectProtocol};
 
-use crate::ragged_buffer::{BinOpAdd, BinOpMul, RaggedBuffer};
+use crate::ragged_buffer::RaggedBuffer;
 
 use super::IndicesOrInt;
 
@@ -26,8 +26,10 @@ impl RaggedBufferI64 {
         _cls: &PyType,
         flattened: PyReadonlyArray2<i64>,
         lengths: PyReadonlyArray1<i64>,
-    ) -> Self {
-        RaggedBufferI64(RaggedBuffer::from_flattened(flattened, lengths))
+    ) -> PyResult<Self> {
+        Ok(RaggedBufferI64(RaggedBuffer::from_flattened(
+            flattened, lengths,
+        )?))
     }
     fn push(&mut self, items: PyReadonlyArrayDyn<i64>) -> PyResult<()> {
         if items.ndim() == 1 && items.len() == 0 {
@@ -56,7 +58,7 @@ impl RaggedBufferI64 {
     fn as_array<'a>(
         &self,
         py: Python<'a>,
-    ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 2]>> {
+    ) -> PyResult<&'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 2]>>> {
         self.0.as_array(py)
     }
 
@@ -117,22 +119,27 @@ pub enum RaggedBufferI64OrI64 {
     Scalar(i64),
 }
 
+#[cfg(all())]
 #[pyproto]
-impl PyNumberProtocol for RaggedBufferI64 {
+impl pyo3::PyNumberProtocol for RaggedBufferI64 {
     fn __add__(lhs: RaggedBufferI64, rhs: RaggedBufferI64OrI64) -> PyResult<RaggedBufferI64> {
         match rhs {
-            RaggedBufferI64OrI64::RB(rhs) => Ok(RaggedBufferI64(lhs.0.binop::<BinOpAdd>(&rhs.0)?)),
-            RaggedBufferI64OrI64::Scalar(rhs) => {
-                Ok(RaggedBufferI64(lhs.0.op_scalar::<BinOpAdd>(rhs)))
-            }
+            RaggedBufferI64OrI64::RB(rhs) => Ok(RaggedBufferI64(
+                lhs.0.binop::<crate::ragged_buffer::BinOpAdd>(&rhs.0)?,
+            )),
+            RaggedBufferI64OrI64::Scalar(rhs) => Ok(RaggedBufferI64(
+                lhs.0.op_scalar::<crate::ragged_buffer::BinOpAdd>(rhs),
+            )),
         }
     }
     fn __mul__(lhs: RaggedBufferI64, rhs: RaggedBufferI64OrI64) -> PyResult<RaggedBufferI64> {
         match rhs {
-            RaggedBufferI64OrI64::RB(rhs) => Ok(RaggedBufferI64(lhs.0.binop::<BinOpMul>(&rhs.0)?)),
-            RaggedBufferI64OrI64::Scalar(rhs) => {
-                Ok(RaggedBufferI64(lhs.0.op_scalar::<BinOpMul>(rhs)))
-            }
+            RaggedBufferI64OrI64::RB(rhs) => Ok(RaggedBufferI64(
+                lhs.0.binop::<crate::ragged_buffer::BinOpMul>(&rhs.0)?,
+            )),
+            RaggedBufferI64OrI64::Scalar(rhs) => Ok(RaggedBufferI64(
+                lhs.0.op_scalar::<crate::ragged_buffer::BinOpMul>(rhs),
+            )),
         }
     }
 }

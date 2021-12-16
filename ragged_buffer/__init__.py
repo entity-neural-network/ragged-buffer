@@ -2,7 +2,7 @@ from typing import Any, Generic, List, Protocol, Type, TypeVar, Union, cast, ove
 from numpy.typing import NDArray
 import numpy as np
 
-from .ragged_buffer import RaggedBufferF32, RaggedBufferI64
+from .ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBufferBool
 
 ScalarType = TypeVar("ScalarType", bound=np.generic)
 
@@ -19,6 +19,8 @@ class RaggedBuffer(Generic[ScalarType]):
             return RaggedBufferF32.from_array(x)
         elif x.dtype == np.int64:
             return RaggedBufferI64.from_array(x)
+        elif x.dtype == np.bool_:
+            return RaggedBufferBool.from_array(x)
         else:
             raise ValueError(
                 f"Unsupported dtype {x.dtype}. Only float32 and int64 are currently supported."
@@ -32,6 +34,8 @@ class RaggedBuffer(Generic[ScalarType]):
             return RaggedBufferF32.from_flattened(flattened, lengths)
         elif flattened.dtype == np.int64:
             return RaggedBufferI64.from_flattened(flattened, lengths)
+        elif flattened.dtype == np.bool_:
+            return RaggedBufferBool.from_flattened(flattened, lengths)
         else:
             raise ValueError(
                 f"Unsupported dtype {flattened.dtype}. Only float32 and int64 are currently supported."
@@ -48,5 +52,7 @@ def cat(
             return RaggedBufferF32.cat(buffers, dim)
         elif isinstance(buffers[0], RaggedBufferI64):
             return RaggedBufferI64.cat(buffers, dim)
+        elif isinstance(buffers[0], RaggedBufferBool):
+            return RaggedBufferBool.cat(buffers, dim)
         else:
             raise TypeError(f"Type {type(buffers[0])} is not a RaggedBuffer")

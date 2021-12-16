@@ -1,10 +1,10 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
 use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
-use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
+use pyo3::{prelude::*, PyMappingProtocol, PyObjectProtocol};
 
 use crate::monomorphs::RaggedBufferI64;
-use crate::ragged_buffer::{BinOpAdd, BinOpMul, RaggedBuffer};
+use crate::ragged_buffer::RaggedBuffer;
 
 use super::IndicesOrInt;
 
@@ -27,8 +27,10 @@ impl RaggedBufferF32 {
         _cls: &PyType,
         flattened: PyReadonlyArray2<f32>,
         lengths: PyReadonlyArray1<i64>,
-    ) -> Self {
-        RaggedBufferF32(RaggedBuffer::from_flattened(flattened, lengths))
+    ) -> PyResult<Self> {
+        Ok(RaggedBufferF32(RaggedBuffer::from_flattened(
+            flattened, lengths,
+        )?))
     }
     fn push(&mut self, items: PyReadonlyArrayDyn<f32>) -> PyResult<()> {
         if items.ndim() == 1 && items.len() == 0 {
@@ -57,7 +59,7 @@ impl RaggedBufferF32 {
     fn as_array<'a>(
         &self,
         py: Python<'a>,
-    ) -> &'a numpy::PyArray<f32, numpy::ndarray::Dim<[usize; 2]>> {
+    ) -> PyResult<&'a numpy::PyArray<f32, numpy::ndarray::Dim<[usize; 2]>>> {
         self.0.as_array(py)
     }
 
@@ -118,22 +120,27 @@ pub enum RaggedBufferF32OrF32 {
     Scalar(f32),
 }
 
+#[cfg(all())]
 #[pyproto]
-impl PyNumberProtocol for RaggedBufferF32 {
+impl pyo3::PyNumberProtocol for RaggedBufferF32 {
     fn __add__(lhs: RaggedBufferF32, rhs: RaggedBufferF32OrF32) -> PyResult<RaggedBufferF32> {
         match rhs {
-            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.binop::<BinOpAdd>(&rhs.0)?)),
-            RaggedBufferF32OrF32::Scalar(rhs) => {
-                Ok(RaggedBufferF32(lhs.0.op_scalar::<BinOpAdd>(rhs)))
-            }
+            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(
+                lhs.0.binop::<crate::ragged_buffer::BinOpAdd>(&rhs.0)?,
+            )),
+            RaggedBufferF32OrF32::Scalar(rhs) => Ok(RaggedBufferF32(
+                lhs.0.op_scalar::<crate::ragged_buffer::BinOpAdd>(rhs),
+            )),
         }
     }
     fn __mul__(lhs: RaggedBufferF32, rhs: RaggedBufferF32OrF32) -> PyResult<RaggedBufferF32> {
         match rhs {
-            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(lhs.0.binop::<BinOpMul>(&rhs.0)?)),
-            RaggedBufferF32OrF32::Scalar(rhs) => {
-                Ok(RaggedBufferF32(lhs.0.op_scalar::<BinOpMul>(rhs)))
-            }
+            RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(
+                lhs.0.binop::<crate::ragged_buffer::BinOpMul>(&rhs.0)?,
+            )),
+            RaggedBufferF32OrF32::Scalar(rhs) => Ok(RaggedBufferF32(
+                lhs.0.op_scalar::<crate::ragged_buffer::BinOpMul>(rhs),
+            )),
         }
     }
 }

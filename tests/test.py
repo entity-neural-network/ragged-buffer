@@ -1,6 +1,11 @@
 from typing import TypeVar
 import numpy as np
-from ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBuffer
+from ragged_buffer import (
+    RaggedBufferF32,
+    RaggedBufferI64,
+    RaggedBufferBool,
+    RaggedBuffer,
+)
 import ragged_buffer
 
 rba = RaggedBufferF32(3)
@@ -203,3 +208,14 @@ zerofeats = RaggedBufferF32(features=0)
 zerofeats.push(np.zeros((1, 0), dtype=np.float32))
 zerofeats.push(np.zeros((0, 0), dtype=np.float32))
 assert zerofeats.as_array().shape == (1, 0), f"{zerofeats.as_array().shape}"
+
+
+boolrb = RaggedBufferBool.from_flattened(
+    np.array([[True, False, True], [False, True, False]], dtype=np.bool_),
+    np.array([2, 0], dtype=np.int64),
+)
+assert boolrb.as_array().shape == (2, 3), f"{boolrb.as_array().shape}"
+assert np.all(
+    boolrb.as_array()
+    == np.array([[True, False, True], [False, True, False]], dtype=np.bool_)
+), f"{boolrb.as_array()}"

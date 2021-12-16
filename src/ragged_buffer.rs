@@ -34,7 +34,7 @@ impl<T: Mul<T, Output = T>> BinOp<T> for BinOpMul {
     }
 }
 
-impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> RaggedBuffer<T> {
+impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
     pub fn new(features: usize) -> Self {
         RaggedBuffer {
             data: Vec::new(),
@@ -57,7 +57,10 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         }
     }
 
-    pub fn from_flattened(data: PyReadonlyArray2<T>, lengths: PyReadonlyArray1<i64>) -> Self {
+    pub fn from_flattened(
+        data: PyReadonlyArray2<T>,
+        lengths: PyReadonlyArray1<i64>,
+    ) -> PyResult<Self> {
         let data = data.as_array();
         let lenghts = lengths.as_array();
         let features = data.shape()[1];
@@ -67,11 +70,19 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             subarrays.push(item..(item + len as usize));
             item += len as usize;
         }
-        RaggedBuffer {
-            data: data.iter().cloned().collect(),
-            subarrays,
-            features,
-            items: item,
+        if item != data.shape()[0] {
+            Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Lengths array specifies {} items, but data array has {} items",
+                item,
+                data.shape()[0]
+            )))
+        } else {
+            Ok(RaggedBuffer {
+                data: data.iter().cloned().collect(),
+                subarrays,
+                features,
+                items: item,
+            })
         }
     }
 
@@ -99,11 +110,10 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
     pub fn as_array<'a>(
         &self,
         py: Python<'a>,
-    ) -> &'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>> {
+    ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
         self.data
             .to_pyarray(py)
             .reshape((self.items, self.features))
-            .unwrap()
     }
 
     pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
