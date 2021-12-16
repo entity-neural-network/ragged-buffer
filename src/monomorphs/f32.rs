@@ -1,4 +1,4 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
 use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyNumberProtocol, PyObjectProtocol};
@@ -30,8 +30,24 @@ impl RaggedBufferF32 {
     ) -> Self {
         RaggedBufferF32(RaggedBuffer::from_flattened(flattened, lengths))
     }
-    fn push(&mut self, items: PyReadonlyArray2<f32>) -> PyResult<()> {
-        self.0.push(items)
+    fn push(&mut self, items: PyReadonlyArrayDyn<f32>) -> PyResult<()> {
+        if items.ndim() == 1 && items.len() == 0 {
+            self.0.push_empty();
+            Ok(())
+        } else if items.ndim() == 2 {
+            self.0.push(
+                &items
+                    .reshape((items.shape()[0], items.shape()[1]))?
+                    .readonly(),
+            )
+        } else {
+            Err(pyo3::exceptions::PyValueError::new_err(
+                "Expected 2 dimensional array",
+            ))
+        }
+    }
+    fn push_empty(&mut self) {
+        self.0.push_empty();
     }
 
     fn clear(&mut self) {

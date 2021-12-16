@@ -26,7 +26,7 @@ rba.push(
         dtype=np.float32,
     )
 )
-rba.push(np.array([], dtype=np.float32).reshape(0, 3))
+rba.push(np.array([], dtype=np.float32))
 
 assert generic_len(rba) == 27, f"Expected 27 elements, got {generic_len(rba)}"
 

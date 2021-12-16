@@ -106,7 +106,7 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
             .unwrap()
     }
 
-    pub fn push(&mut self, x: PyReadonlyArray2<T>) -> PyResult<()> {
+    pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
         let data = x.as_array();
         if data.dim().1 != self.features {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -126,6 +126,10 @@ impl<T: numpy::Element + Copy + Display + Add<Output = T> + std::fmt::Debug> Rag
         }
         self.items += data.dim().0;
         Ok(())
+    }
+
+    pub fn push_empty(&mut self) {
+        self.subarrays.push(self.items..self.items);
     }
 
     pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBuffer<T>> {

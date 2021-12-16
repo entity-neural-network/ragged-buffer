@@ -43,7 +43,7 @@ buffer = RaggedBufferF32(3)
 # Push sequences with 3, 5, 0, and 1 elements
 buffer.push(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32))
 buffer.push(np.array([[10, 11, 12], [13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]], dtype=np.float32))
-buffer.push(np.array([], dtype=np.float32))
+buffer.push(np.array([], dtype=np.float32))  # Alternative: `buffer.push_empty()`
 buffer.push(np.array([[25, 25, 27]], dtype=np.float32))
 ```
 
