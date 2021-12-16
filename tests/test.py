@@ -27,6 +27,7 @@ rba.push(
     )
 )
 rba.push(np.array([], dtype=np.float32))
+rba.push_empty()
 
 assert generic_len(rba) == 27, f"Expected 27 elements, got {generic_len(rba)}"
 
@@ -47,7 +48,8 @@ expected = """RaggedBuffer([
         [1.4, 2.4, 3.4],
     ],
     [],
-], '4 * var * 3 * f32)"""
+    [],
+], '5 * var * 3 * f32)"""
 
 
 assert str(rba) == expected, str(rba)
@@ -67,7 +69,7 @@ flattened = np.array(
 )
 assert np.all(rba.as_array() == flattened)
 assert rba == RaggedBufferF32.from_flattened(
-    flattened=flattened, lengths=np.array([2, 3, 4, 0], dtype=np.int64),
+    flattened=flattened, lengths=np.array([2, 3, 4, 0, 0], dtype=np.int64),
 )
 assert RaggedBufferF32(3) == RaggedBufferF32(3)
 
@@ -80,17 +82,19 @@ rba2.push(
 rba.extend(rba2)
 assert rba == RaggedBufferF32.from_flattened(
     flattened=np.concatenate([flattened, np.zeros((5, 3), dtype=np.float32)]),
-    lengths=np.array([2, 3, 4, 0, 2, 3], dtype=np.int64),
+    lengths=np.array([2, 3, 4, 0, 0, 2, 3], dtype=np.int64),
 )
 rba[np.random.permutation(rba.size0())]
 
-assert rba.size0() == 6
+assert rba.size0() == 7
 assert rba.size1(0) == 2
 assert rba.size1(1) == 3
 assert rba.size1(2) == 4
 assert rba.size1(3) == 0
-assert rba.size1(4) == 2
-assert rba.size1(5) == 3
+assert rba.size1(4) == 0
+assert rba.size1(5) == 2
+assert rba.size1(6) == 3
+assert np.all(rba.size1() == np.array([2, 3, 4, 0, 0, 2, 3], dtype=np.int64))
 assert rba.size2() == 3
 
 rba.clear()
