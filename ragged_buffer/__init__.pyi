@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Generic, Tuple, TypeVar, Union, overload, List
+from typing import Any, Generic, Tuple, TypeVar, Union, overload, List, Optional
 from numpy.typing import NDArray
 import numpy as np
 
@@ -43,7 +43,9 @@ class RaggedBuffer(Generic[ScalarType]):
     def clear(self) -> None: ...
     def indices(self, dim: int) -> RaggedBufferI64: ...
     def flat_indices(self) -> RaggedBufferI64: ...
-    def padpack(self) -> Tuple[NDArray[np.int64], NDArray[np.float32], NDArray[np.int64], bool]: ...
+    def padpack(
+        self,
+    ) -> Optional[Tuple[NDArray[np.int64], NDArray[np.float32], NDArray[np.int64]]]: ...
 
 RaggedBufferF32 = RaggedBuffer[np.float32]
 RaggedBufferI64 = RaggedBuffer[np.int64]

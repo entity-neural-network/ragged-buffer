@@ -93,14 +93,14 @@ impl RaggedBufferF32 {
     }
     #[allow(clippy::type_complexity)]
     fn padpack<'a>(&self, py: Python<'a>) -> PadpackResult<'a> {
-        let (padbpack_index, padpack_batch, padpack_inverse_index, identity, dims) =
-            self.0.padpack();
-        Ok((
-            padbpack_index.to_pyarray(py).reshape(dims)?,
-            padpack_batch.to_pyarray(py).reshape(dims)?,
-            padpack_inverse_index.to_pyarray(py).reshape(self.0.len())?,
-            identity,
-        ))
+        match self.0.padpack() {
+            Some((padbpack_index, padpack_batch, padpack_inverse_index, dims)) => Ok(Some((
+                padbpack_index.to_pyarray(py).reshape(dims)?,
+                padpack_batch.to_pyarray(py).reshape(dims)?,
+                padpack_inverse_index.to_pyarray(py).reshape(self.0.len())?,
+            ))),
+            _ => Ok(None),
+        }
     }
 }
 

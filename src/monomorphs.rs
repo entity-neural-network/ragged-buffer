@@ -16,9 +16,10 @@ pub enum IndicesOrInt<'a> {
 }
 
 type PyArray<'a, T, D> = &'a numpy::PyArray<T, numpy::ndarray::Dim<D>>;
-type PadpackResult<'a> = PyResult<(
-    PyArray<'a, i64, [usize; 2]>,
-    PyArray<'a, f32, [usize; 2]>,
-    PyArray<'a, i64, [usize; 1]>,
-    bool,
-)>;
+type PadpackResult<'a> = PyResult<
+    Option<(
+        PyArray<'a, i64, [usize; 2]>,
+        PyArray<'a, f32, [usize; 2]>,
+        PyArray<'a, i64, [usize; 1]>,
+    )>,
+>;

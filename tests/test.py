@@ -228,7 +228,9 @@ batch_index = RaggedBufferI64.from_flattened(
     np.array([6, 3, 4, 0, 1], dtype=np.int64),
 )
 
-padpack_index, padpack_batch, padpack_inverse_index, identity = batch_index.padpack()
+padpack = batch_index.padpack()
+assert padpack is not None
+padpack_index, padpack_batch, padpack_inverse_index = padpack
 
 assert np.all(
     padpack_index
@@ -254,5 +256,3 @@ np.testing.assert_equal(
     padpack_inverse_index,
     np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 9], dtype=np.int64),
 )
-
-assert not identity

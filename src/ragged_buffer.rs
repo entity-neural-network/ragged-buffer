@@ -463,23 +463,14 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn padpack(&self) -> (Vec<i64>, Vec<f32>, Vec<i64>, bool, (usize, usize)) {
+    pub fn padpack(&self) -> Option<(Vec<i64>, Vec<f32>, Vec<i64>, (usize, usize))> {
         if self.subarrays.is_empty()
             || self
                 .subarrays
                 .iter()
                 .all(|r| r.end - r.start == self.subarrays[0].end - self.subarrays[0].start)
         {
-            return (
-                vec![],
-                vec![],
-                vec![],
-                true,
-                (
-                    self.subarrays.len(),
-                    self.subarrays[0].end - self.subarrays[0].start,
-                ),
-            );
+            return None;
         }
 
         let mut padbpack_index = vec![];
@@ -520,13 +511,12 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
             });
         }
 
-        (
+        Some((
             padbpack_index,
             padpack_batch,
             padpack_inverse_index,
-            false,
             (sequences.len(), max_seq_len),
-        )
+        ))
     }
 
     pub fn len(&self) -> usize {
