@@ -219,3 +219,40 @@ assert np.all(
     boolrb.as_array()
     == np.array([[True, False, True], [False, True, False]], dtype=np.bool_)
 ), f"{boolrb.as_array()}"
+
+batch_index = RaggedBufferI64.from_flattened(
+    np.array(
+        [[0], [0], [0], [0], [0], [0], [1], [1], [1], [2], [2], [2], [2], [4]],
+        dtype=np.int64,
+    ),
+    np.array([6, 3, 4, 0, 1], dtype=np.int64),
+)
+
+padbpack_index, padpack_batch, padpack_inverse_index, identity = batch_index.padpack()
+
+assert np.all(
+    padbpack_index
+    == np.array(
+        [[0, 1, 2, 3, 4, 5], [6, 7, 8, 13, 0, 0], [9, 10, 11, 12, 0, 0]], dtype=np.int64
+    ),
+), f"{padbpack_index}"
+
+
+np.testing.assert_equal(
+    padpack_batch,
+    np.array(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0, 4.0, np.NaN, np.NaN],
+            [2.0, 2.0, 2.0, 2.0, np.NaN, np.NaN],
+        ],
+        dtype=np.float32,
+    ),
+)
+
+np.testing.assert_equal(
+    padpack_inverse_index,
+    np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 9], dtype=np.int64),
+)
+
+assert not identity

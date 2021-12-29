@@ -1,4 +1,6 @@
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
+use std::cmp::Ordering;
+use std::collections::{binary_heap, BinaryHeap};
 use std::fmt::{Display, Write};
 use std::ops::{Add, Mul, Range};
 
@@ -458,5 +460,100 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 dim
             ))),
         }
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn padpack(&self) -> (Vec<i64>, Vec<f32>, Vec<i64>, bool, (usize, usize)) {
+        if self.subarrays.is_empty()
+            || self
+                .subarrays
+                .iter()
+                .all(|r| r.end - r.start == self.subarrays[0].end - self.subarrays[0].start)
+        {
+            return (
+                vec![],
+                vec![],
+                vec![],
+                true,
+                (
+                    self.subarrays.len(),
+                    self.subarrays[0].end - self.subarrays[0].start,
+                ),
+            );
+        }
+
+        let mut padbpack_index = vec![];
+        let mut padpack_batch = vec![];
+        let mut padpack_inverse_index = vec![];
+        let max_seq_len = self
+            .subarrays
+            .iter()
+            .map(|r| r.end - r.start)
+            .max()
+            .unwrap();
+        let mut sequences: BinaryHeap<Sequence> = binary_heap::BinaryHeap::new();
+
+        for (batch_index, subarray) in self.subarrays.iter().enumerate() {
+            let (free, packed_batch_index) = match sequences.peek().cloned() {
+                Some(seq) if seq.free >= subarray.end - subarray.start => {
+                    sequences.pop();
+                    (seq.free, seq.batch_index)
+                }
+                _ => {
+                    for _ in 0..max_seq_len {
+                        padbpack_index.push(0);
+                        padpack_batch.push(f32::NAN);
+                    }
+                    (max_seq_len, sequences.len())
+                }
+            };
+
+            for (i, item) in subarray.clone().enumerate() {
+                let packed_index = packed_batch_index * max_seq_len + max_seq_len - free + i;
+                padbpack_index[packed_index] = item as i64;
+                padpack_batch[packed_index] = batch_index as f32;
+                padpack_inverse_index.push(packed_index as i64);
+            }
+            sequences.push(Sequence {
+                batch_index: packed_batch_index,
+                free: free - (subarray.end - subarray.start),
+            });
+        }
+
+        (
+            padbpack_index,
+            padpack_batch,
+            padpack_inverse_index,
+            false,
+            (sequences.len(), max_seq_len),
+        )
+    }
+
+    pub fn len(&self) -> usize {
+        self.items
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items == 0
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+struct Sequence {
+    free: usize,
+    batch_index: usize,
+}
+
+impl Ord for Sequence {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.free
+            .cmp(&other.free)
+            .then_with(|| other.batch_index.cmp(&self.batch_index))
+    }
+}
+
+impl PartialOrd for Sequence {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }

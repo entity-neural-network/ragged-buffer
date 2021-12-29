@@ -1,11 +1,11 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
 use pyo3::basic::CompareOp;
 use pyo3::types::PyType;
 use pyo3::{prelude::*, PyMappingProtocol, PyObjectProtocol};
 
 use crate::ragged_buffer::RaggedBuffer;
 
-use super::IndicesOrInt;
+use super::{IndicesOrInt, PadpackResult};
 
 #[pyclass]
 #[derive(Clone)]
@@ -89,6 +89,17 @@ impl RaggedBufferI64 {
             &buffers.iter().map(|b| &b.0).collect::<Vec<_>>(),
             dim,
         )?))
+    }
+    #[allow(clippy::type_complexity)]
+    fn padpack<'a>(&self, py: Python<'a>) -> PadpackResult<'a> {
+        let (padbpack_index, padpack_batch, padpack_inverse_index, identity, dims) =
+            self.0.padpack();
+        Ok((
+            padbpack_index.to_pyarray(py).reshape(dims)?,
+            padpack_batch.to_pyarray(py).reshape(dims)?,
+            padpack_inverse_index.to_pyarray(py).reshape(self.0.len())?,
+            identity,
+        ))
     }
 }
 
