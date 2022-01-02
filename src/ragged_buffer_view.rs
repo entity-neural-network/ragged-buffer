@@ -66,7 +66,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.size0() as i64)?;
+                let indices = slice.as_ref(py).indices(self.size0().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
@@ -83,7 +83,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.len()? as i64)?;
+                let indices = slice.as_ref(py).indices(self.len()?.try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
@@ -100,7 +100,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.size2() as i64)?;
+                let indices = slice.as_ref(py).indices(self.size2().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
