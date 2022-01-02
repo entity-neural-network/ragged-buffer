@@ -103,6 +103,9 @@ impl RaggedBufferF32 {
             _ => Ok(None),
         }
     }
+    fn items(&self) -> PyResult<usize> {
+        self.0.items()
+    }
 }
 
 #[pyproto]
@@ -177,5 +180,8 @@ impl<'p> PyMappingProtocol for RaggedBufferF32 {
             })?)),
             x => panic!("{:?}", x),
         }
+    }
+    fn __len__(&self) -> PyResult<usize> {
+        self.0.len()
     }
 }

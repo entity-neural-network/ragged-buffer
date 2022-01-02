@@ -278,6 +278,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         Ok(self.get().is_empty())
     }
 
+    pub fn items(&self) -> PyResult<usize> {
+        self.require_contiguous("items")?;
+        Ok(self.get().items())
+    }
+
     pub fn binop_mut<Op: BinOp<T>>(&self, rhs: &RaggedBufferView<T>) -> PyResult<()> {
         let (lhs_i0, lhs_i1, lhs_i2) = self.view.clone().unwrap();
         let (rhs_i0, rhs_i1, rhs_i2) = rhs.view.clone().unwrap();

@@ -301,3 +301,6 @@ assert entities == RaggedBufferF32.from_flattened(
     ),
     np.array([3, 0, 2, 1], dtype=np.int64),
 ), f"{entities}"
+
+assert len(entities) == 24, f"{len(entities)}"
+assert entities.items() == 6

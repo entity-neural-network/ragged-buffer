@@ -528,12 +528,16 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         ))
     }
 
-    pub fn len(&self) -> usize {
+    pub fn items(&self) -> usize {
         self.items
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.items == 0
+        self.data.is_empty()
     }
 }
 
