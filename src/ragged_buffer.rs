@@ -2,16 +2,16 @@ use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
 use std::cmp::Ordering;
 use std::collections::{binary_heap, BinaryHeap};
 use std::fmt::{Display, Write};
-use std::ops::{Add, Mul, Range};
+use std::ops::{Add, Mul, Range, Sub};
 
 use pyo3::prelude::*;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RaggedBuffer<T> {
-    data: Vec<T>,
-    subarrays: Vec<Range<usize>>,
-    features: usize,
-    items: usize,
+    pub(crate) data: Vec<T>,
+    pub(crate) subarrays: Vec<Range<usize>>,
+    pub(crate) features: usize,
+    pub(crate) items: usize,
 }
 
 pub trait BinOp<T> {
@@ -24,6 +24,15 @@ impl<T: Add<T, Output = T>> BinOp<T> for BinOpAdd {
     #[inline]
     fn op(lhs: T, rhs: T) -> T {
         lhs + rhs
+    }
+}
+
+pub struct BinOpSub;
+
+impl<T: Sub<T, Output = T>> BinOp<T> for BinOpSub {
+    #[inline]
+    fn op(lhs: T, rhs: T) -> T {
+        lhs - rhs
     }
 }
 

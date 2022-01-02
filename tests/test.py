@@ -256,3 +256,48 @@ np.testing.assert_equal(
     padpack_inverse_index,
     np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 9], dtype=np.int64),
 )
+
+
+origin = RaggedBufferF32.from_array(
+    np.array(
+        [
+            [[0.0, 0.0, 100.0, -23.0]],
+            [[1.0, -1.0, 200.0, -23.0]],
+            [[2.0, -2.0, 300.0, -23.0]],
+            [[-10.0, -10.0, 400.0, -23.0]],
+        ],
+        dtype=np.float32,
+    )
+)
+entities = RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [10, 3.0, 10, 1.0],
+            [11, 4.0, 11, 2.0],
+            [12, 5.0, 12, 3.0],
+            [13, 6.0, 13, 4.0],
+            [14, 7.0, 14, 5.0],
+            [15, 8.0, 15, 6.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 0, 2, 1], dtype=np.int64),
+)
+
+
+entities_slice = entities[:, :, [1, 3]]
+entities_slice -= origin[:, :, [0, 1]]
+assert entities == RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [10, 3.0, 10, 1.0],
+            [11, 4.0, 11, 2.0],
+            [12, 5.0, 12, 3.0],
+            [13, 4.0, 13, 6.0],
+            [14, 5.0, 14, 7.0],
+            [15, 18.0, 15, 16.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 0, 2, 1], dtype=np.int64),
+), f"{entities}"
