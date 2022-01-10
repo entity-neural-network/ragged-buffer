@@ -286,6 +286,7 @@ entities = RaggedBufferF32.from_flattened(
 
 
 entities_slice = entities[:, :, [1, 3]]
+entities_clone = entities.clone()
 entities_slice -= origin[:, :, [0, 1]]
 assert entities == RaggedBufferF32.from_flattened(
     np.array(
@@ -304,3 +305,4 @@ assert entities == RaggedBufferF32.from_flattened(
 
 assert len(entities) == 24, f"{len(entities)}"
 assert entities.items() == 6
+assert entities_clone != entities

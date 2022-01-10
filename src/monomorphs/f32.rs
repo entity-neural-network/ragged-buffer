@@ -106,6 +106,9 @@ impl RaggedBufferF32 {
     fn items(&self) -> PyResult<usize> {
         self.0.items()
     }
+    fn clone(&self) -> Self {
+        RaggedBufferF32(self.0.clone())
+    }
 }
 
 #[pyproto]
