@@ -103,6 +103,12 @@ impl RaggedBufferBool {
             _ => Ok(None),
         }
     }
+    fn items(&self) -> PyResult<usize> {
+        self.0.items()
+    }
+    fn clone(&self) -> Self {
+        RaggedBufferBool(self.0.deepclone())
+    }
 }
 
 #[pyproto]
@@ -177,5 +183,8 @@ impl<'p> PyMappingProtocol for RaggedBufferBool {
             })?)),
             x => panic!("{:?}", x),
         }
+    }
+    fn __len__(&self) -> PyResult<usize> {
+        self.0.len()
     }
 }

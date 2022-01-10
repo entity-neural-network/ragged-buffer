@@ -102,6 +102,12 @@ impl RaggedBufferI64 {
             _ => Ok(None),
         }
     }
+    fn items(&self) -> PyResult<usize> {
+        self.0.items()
+    }
+    fn clone(&self) -> Self {
+        RaggedBufferI64(self.0.deepclone())
+    }
 }
 
 #[pyproto]
@@ -176,5 +182,8 @@ impl<'p> PyMappingProtocol for RaggedBufferI64 {
             })?)),
             x => panic!("{:?}", x),
         }
+    }
+    fn __len__(&self) -> PyResult<usize> {
+        self.0.len()
     }
 }

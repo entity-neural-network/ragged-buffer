@@ -355,6 +355,14 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
 
         Ok(())
     }
+
+    pub fn deepclone(&self) -> RaggedBufferView<T> {
+        let inner = self.get().clone();
+        RaggedBufferView {
+            inner: Arc::new(RwLock::new(inner)),
+            view: self.view.clone(),
+        }
+    }
 }
 
 impl<T: numpy::Element + Copy + Display + std::fmt::Debug + PartialEq> PartialEq

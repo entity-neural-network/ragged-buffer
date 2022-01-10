@@ -306,3 +306,5 @@ assert entities == RaggedBufferF32.from_flattened(
 assert len(entities) == 24, f"{len(entities)}"
 assert entities.items() == 6
 assert entities_clone != entities
+
+print("ALL TESTS PASSED")

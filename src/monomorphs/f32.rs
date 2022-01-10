@@ -107,7 +107,7 @@ impl RaggedBufferF32 {
         self.0.items()
     }
     fn clone(&self) -> Self {
-        RaggedBufferF32(self.0.clone())
+        RaggedBufferF32(self.0.deepclone())
     }
 }
 
