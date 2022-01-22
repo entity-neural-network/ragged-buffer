@@ -2,7 +2,7 @@ from typing import Any, Generic, List, Protocol, Type, TypeVar, Union, cast, ove
 from numpy.typing import NDArray
 import numpy as np
 
-from .ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBufferBool
+from .ragged_buffer import RaggedBufferF32, RaggedBufferI64, RaggedBufferBool, translate_rotate
 
 ScalarType = TypeVar("ScalarType", bound=np.generic)
 

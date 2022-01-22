@@ -58,3 +58,8 @@ RaggedBufferBool = RaggedBuffer[np.bool_]
 def cat(
     buffers: List[RaggedBuffer[ScalarType]], dim: int = 0
 ) -> RaggedBuffer[ScalarType]: ...
+def translate_rotate(
+    source: RaggedBuffer[np.float32],
+    translation: RaggedBuffer[np.float32],
+    rotation: RaggedBuffer[np.float32],
+) -> None: ...

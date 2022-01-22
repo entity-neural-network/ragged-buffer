@@ -365,6 +365,106 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     }
 }
 
+pub fn translate_rotate(
+    source: &RaggedBufferView<f32>,
+    translation: &RaggedBufferView<f32>,
+    rotation: &RaggedBufferView<f32>,
+) -> PyResult<()> {
+    if source.size0() != translation.size0() {
+        return Err(exceptions::PyValueError::new_err(format!(
+            "size mismatch in first dimension: {} != {}",
+            source.size0(),
+            translation.size0(),
+        )));
+    }
+    if source.size2() != 2 {
+        return Err(exceptions::PyValueError::new_err(format!(
+            "expected 2D source, got {}D",
+            source.size2(),
+        )));
+    }
+    if translation.size2() != 2 {
+        return Err(exceptions::PyValueError::new_err(format!(
+            "expected 2D translation, got {}D",
+            translation.size2(),
+        )));
+    }
+    if rotation.size2() != 2 {
+        return Err(exceptions::PyValueError::new_err(format!(
+            "expected rotation to be a 2D direction, got {}D",
+            rotation.size2(),
+        )));
+    }
+    let (s0, _, s2) = source.view.clone().unwrap();
+    let (t0, _, t2) = translation.view.clone().unwrap();
+    let (r0, _, r2) = rotation.view.clone().unwrap();
+    let mut source = source.get_mut();
+    let translation = translation.get();
+    let rotation = rotation.get();
+
+    let ss0 = source.size0();
+    let ts0 = translation.size0();
+    let rs0 = rotation.size0();
+    match s0 {
+        Slice::Range { start, end, step } if start == 0 && end == ss0 && step == 1 => {}
+        _ => {
+            return Err(exceptions::PyValueError::new_err(
+                "view on first dimension of source not supported".to_string(),
+            ))
+        }
+    }
+    match t0 {
+        Slice::Range { start, end, step } if start == 0 && end == ts0 && step == 1 => {}
+        _ => {
+            return Err(exceptions::PyValueError::new_err(
+                "view on first dimension of translation not supported".to_string(),
+            ))
+        }
+    }
+    match r0 {
+        Slice::Range { start, end, step } if start == 0 && end == rs0 && step == 1 => {}
+        _ => {
+            return Err(exceptions::PyValueError::new_err(
+                "view on first dimension of rotation not supported".to_string(),
+            ))
+        }
+    }
+    let (sxi, syi) = match s2 {
+        Slice::Range { start, step, .. } => (start, start + step),
+        Slice::Permutation(indices) => (indices[0], indices[1]),
+    };
+    let (txi, tyi) = match t2 {
+        Slice::Range { start, step, .. } => (start, start + step),
+        Slice::Permutation(indices) => (indices[0], indices[1]),
+    };
+    let (rxi, ryi) = match r2 {
+        Slice::Range { start, step, .. } => (start, start + step),
+        Slice::Permutation(indices) => (indices[0], indices[1]),
+    };
+    let sstride = source.features;
+    for i0 in 0..source.size0() {
+        if translation.size1(i0)? != 1 || rotation.size1(i0)? != 1 {
+            return Err(exceptions::PyValueError::new_err(format!(
+                "must have single item in translation and rotation for each sequence, but got {} and {} items for sequence {}",
+                translation.size1(i0)?, rotation.size1(i0)?, i0,
+            )));
+        }
+        // TODO: check no view on dim 1
+        for i1 in source.subarrays[i0].clone() {
+            let sstart = i1 * sstride;
+            source.data[sstart + sxi] -= translation.data[i0 * translation.features + txi];
+            source.data[sstart + syi] -= translation.data[i0 * translation.features + tyi];
+            let rx = rotation.data[i0 * rotation.features + rxi];
+            let ry = rotation.data[i0 * rotation.features + ryi];
+            let sx = source.data[sstart + sxi];
+            let sy = source.data[sstart + syi];
+            source.data[sstart + sxi] = rx * sx + ry * sy;
+            source.data[sstart + syi] = -ry * sx + rx * sy;
+        }
+    }
+    Ok(())
+}
+
 impl<T: numpy::Element + Copy + Display + std::fmt::Debug + PartialEq> PartialEq
     for RaggedBufferView<T>
 {

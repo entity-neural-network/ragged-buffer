@@ -1,4 +1,5 @@
 from typing import TypeVar
+import math
 import numpy as np
 from ragged_buffer import (
     RaggedBufferF32,
@@ -306,5 +307,52 @@ assert entities == RaggedBufferF32.from_flattened(
 assert len(entities) == 24, f"{len(entities)}"
 assert entities.items() == 6
 assert entities_clone != entities
+
+
+origin = RaggedBufferF32.from_array(
+    np.array(
+        [
+            [[0.0, 0.0, 100.0, -23.0, 1.0, 0.0]],
+            [[1.0, -1.0, 200.0, -23.0, 1.0, 0.0]],
+            [[2.0, -2.0, 300.0, -23.0, math.sqrt(2) / 2, -math.sqrt(2) / 2]],
+            [[-10.0, -10.0, 400.0, -23.0, -1.0, 0.0]],
+        ],
+        dtype=np.float32,
+    )
+)
+entities = RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [10, 3.0, 10, 1.0],
+            [11, 4.0, 11, 2.0],
+            [12, 5.0, 12, 3.0],
+            [13, 6.0, 13, 4.0],
+            [14, 7.0, 14, 5.0],
+            [15, 8.0, 15, 6.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 0, 2, 1], dtype=np.int64),
+)
+
+
+ragged_buffer.translate_rotate(
+    entities[:, :, [1, 3]], origin[:, :, [0, 1]], origin[:, :, [4, 5]]
+)
+assert np.allclose(
+    entities.as_array(),
+    np.array(
+        [
+            [10, 3.0, 10, 1.0],
+            [11, 4.0, 11, 2.0],
+            [12, 5.0, 12, 3.0],
+            [13, -1.4142134, 13, 7.071068],
+            [14, -1.4142137, 14, 8.485281],
+            [15, -18.0, 15, -16.0],
+        ],
+        dtype=np.float32,
+    ),
+    1e-6,
+), f"{entities}"
 
 print("ALL TESTS PASSED")
