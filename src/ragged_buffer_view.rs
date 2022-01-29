@@ -251,8 +251,41 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         &self,
         py: Python<'a>,
     ) -> PyResult<&'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>>> {
-        self.require_contiguous("lengths")?;
-        Ok(self.get().lengths(py))
+        match self.view {
+            None => Ok(self.get().lengths(py)),
+            Some((
+                Slice::Range {
+                    start: start0,
+                    end: end0,
+                    step: step0,
+                },
+                Slice::Range {
+                    start: start1,
+                    end: end1,
+                    step: step1,
+                },
+                _,
+            )) => {
+                let mut lengths = Vec::with_capacity((end0 - start0) / step0);
+                let inner = self.get();
+                for i0 in (start0..end0).step_by(step0) {
+                    let end1 = std::cmp::min(end1, inner.subarrays[i0].len());
+                    if end1 > start1 {
+                        let stepsf = (end1 - start1) / step1;
+                        lengths.push(
+                            stepsf as i64 + if stepsf * step1 < end1 - start1 { 1 } else { 0 },
+                        );
+                    } else {
+                        lengths.push(0);
+                    }
+                }
+                Ok(lengths.to_pyarray(py))
+            }
+            _ => {
+                self.require_contiguous("lengths")?;
+                Ok(self.get().lengths(py))
+            }
+        }
     }
 
     pub fn size1(&self, i: usize) -> PyResult<usize> {

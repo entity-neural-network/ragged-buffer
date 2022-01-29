@@ -388,6 +388,15 @@ assert np.array_equal(
         dtype=np.float32,
     ),
 ), f"{feats[:, :, 0].as_array()}"
+assert np.array_equal(
+    feats[:, 0:2:3, :].size1(), np.array([1, 1, 1], dtype=np.int64),
+), f"{feats[:, 0:2:3, :].size1()}"
+assert np.array_equal(
+    feats[:, 1:3, 0].size1(), np.array([2, 1, 0], dtype=np.int64),
+), f"{feats[:, 1:3, 0].size1()}"
+assert np.array_equal(
+    feats[1:, 1:10, 0].size1(), np.array([1, 0], dtype=np.int64),
+), f"{feats[1:, 1:10, 0].size1()}"
 
 
 print("ALL TESTS PASSED")
