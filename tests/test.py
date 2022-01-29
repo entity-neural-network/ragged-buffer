@@ -355,4 +355,39 @@ assert np.allclose(
     1e-6,
 ), f"{entities}"
 
+
+feats = RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [0.0, 3.0, 1.0, 1.0],
+            [1.0, 4.0, 0, 2.0],
+            [2.0, 5.0, 1.0, 3.0],
+            [3.0, 6.0, 0.0, 4.0],
+            [4.0, 7.0, 0.0, 5.0],
+            [5.0, 8.0, 0.0, 6.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 2, 1], dtype=np.int64),
+)
+assert np.array_equal(
+    feats[1:2, :, :].as_array(),
+    np.array([[3.0, 6.0, 0.0, 4.0], [4.0, 7.0, 0.0, 5.0],], dtype=np.float32,),
+), f"{feats[1:2, :, :].as_array()}"
+assert np.array_equal(
+    feats[:, :, 1:3].as_array(),
+    np.array(
+        [[3.0, 1.0], [4.0, 0.0], [5.0, 1.0], [6.0, 0.0], [7.0, 0.0], [8.0, 0.0],],
+        dtype=np.float32,
+    ),
+), f"{feats[:, :, 1:3].as_array()}"
+assert np.array_equal(
+    feats[:, 0, :].as_array(),
+    np.array(
+        [[0.0, 3.0, 1.0, 1.0], [3.0, 6.0, 0.0, 4.0], [5.0, 8.0, 0.0, 6.0],],
+        dtype=np.float32,
+    ),
+), f"{feats[:, :, 0].as_array()}"
+
+
 print("ALL TESTS PASSED")

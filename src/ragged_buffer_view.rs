@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
 use pyo3::{exceptions, PyResult, Python};
 
 use crate::monomorphs::Index;
@@ -167,8 +167,46 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         py: Python<'a>,
     ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
         match self.view {
-            Some((_, _, _)) => todo!(),
+            Some((
+                Slice::Range {
+                    start: start0,
+                    end: end0,
+                    step: step0,
+                },
+                Slice::Range {
+                    start: start1,
+                    end: end1,
+                    step: step1,
+                },
+                Slice::Range {
+                    start: start2,
+                    end: end2,
+                    step: step2,
+                },
+            )) => {
+                let mut data = Vec::with_capacity(
+                    (end0 - start0) * (end1 - start1) * (end2 - start2) / (step0 * step1 * step2),
+                );
+                let inner = self.get();
+                for i0 in (start0..end0).step_by(step0) {
+                    for i1 in inner.subarrays[i0]
+                        .clone()
+                        .skip(start1)
+                        .take(end1 - start1)
+                        .step_by(step1)
+                    {
+                        for i2 in (start2..end2).step_by(step2) {
+                            data.push(inner.data[i1 * inner.features + i2]);
+                        }
+                    }
+                }
+                data.to_pyarray(py)
+                    .reshape((data.len() / (end2 - start2), end2 - start2))
+            }
             None => self.get().as_array(py),
+            _ => Err(pyo3::exceptions::PyValueError::new_err(
+                "as_array is not implmented for indexed views",
+            )),
         }
     }
 
