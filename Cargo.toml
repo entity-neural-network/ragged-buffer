@@ -9,7 +9,7 @@ description = "Efficient RaggedBuffer datatype that implements 3D arrays with va
 
 [lib]
 name = "ragged_buffer"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 numpy = "0.15"
