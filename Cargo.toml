@@ -4,6 +4,8 @@ version = "0.3.6"
 edition = "2021"
 authors = ["Clemens Winter <clemenswinter1@gmail.com>"]
 readme = "README.md"
+license = "MIT OR Apache-2.0"
+description = "Efficient RaggedBuffer datatype that implements 3D arrays with variable-length 2nd dimension."
 
 [lib]
 name = "ragged_buffer"
