@@ -36,7 +36,7 @@ impl Slice {
 // TODO: Eq/PartialEq/Hash
 #[derive(Clone, Debug)]
 pub struct RaggedBufferView<T> {
-    inner: Arc<RwLock<RaggedBuffer<T>>>,
+    pub inner: Arc<RwLock<RaggedBuffer<T>>>,
     view: Option<(Slice, Slice, Slice)>,
 }
 
@@ -550,7 +550,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug + PartialEq> PartialEq
 impl<T: numpy::Element + Copy + Display + std::fmt::Debug + Eq> Eq for RaggedBufferView<T> {}
 
 impl<T> RaggedBuffer<T> {
-    fn view(self) -> RaggedBufferView<T> {
+    pub fn view(self) -> RaggedBufferView<T> {
         RaggedBufferView {
             inner: Arc::new(RwLock::new(self)),
             view: None,

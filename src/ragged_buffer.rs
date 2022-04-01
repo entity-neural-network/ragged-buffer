@@ -8,12 +8,12 @@ use pyo3::prelude::*;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RaggedBuffer<T> {
-    pub(crate) data: Vec<T>,
+    pub data: Vec<T>,
     // Each element of `subarrays` gives the start/end index of the items within that subarray (step size 1).
     // The start index of the data of an item is obtained by multiplying its index by `features`.
-    pub(crate) subarrays: Vec<Range<usize>>,
-    pub(crate) features: usize,
-    pub(crate) items: usize,
+    pub subarrays: Vec<Range<usize>>,
+    pub features: usize,
+    pub items: usize,
 }
 
 pub trait BinOp<T> {
