@@ -1,10 +1,16 @@
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3::wrap_pyfunction;
-
+#[cfg(feature = "python")]
 pub mod monomorphs;
+
 pub mod ragged_buffer;
+
+#[cfg(feature = "python")]
 pub mod ragged_buffer_view;
 
+#[cfg(feature = "python")]
 #[pymodule]
 fn ragged_buffer(_py: Python, m: &PyModule) -> PyResult<()> {
     // New exports also have to be added to __init__.py
@@ -15,6 +21,7 @@ fn ragged_buffer(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "python")]
 #[pyfunction]
 fn translate_rotate(
     source: &monomorphs::RaggedBufferF32,

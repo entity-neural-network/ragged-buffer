@@ -1,10 +1,21 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
 use std::cmp::Ordering;
 use std::collections::{binary_heap, BinaryHeap};
 use std::fmt::{Display, Write};
 use std::ops::{Add, Mul, Range, Sub};
 
-use pyo3::prelude::*;
+use ndarray::{ArrayView1, ArrayView2};
+
+pub enum Error {
+    Generic(String),
+}
+
+impl Error {
+    fn generic<S: Into<String>>(s: S) -> Self {
+        Self::Generic(s.into())
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RaggedBuffer<T> {
@@ -47,7 +58,7 @@ impl<T: Mul<T, Output = T>> BinOp<T> for BinOpMul {
     }
 }
 
-impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
+impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
     pub fn new(features: usize) -> Self {
         RaggedBuffer {
             data: Vec::new(),
@@ -57,8 +68,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         }
     }
 
-    pub fn from_array(data: PyReadonlyArray3<T>) -> Self {
-        let data = data.as_array();
+    pub fn from_array(data: ArrayView2<T>) -> Self {
         let features = data.shape()[2];
         RaggedBuffer {
             data: data.iter().cloned().collect(),
@@ -70,21 +80,16 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         }
     }
 
-    pub fn from_flattened(
-        data: PyReadonlyArray2<T>,
-        lengths: PyReadonlyArray1<i64>,
-    ) -> PyResult<Self> {
-        let data = data.as_array();
-        let lenghts = lengths.as_array();
+    pub fn from_flattened(data: ArrayView2<T>, lengths: ArrayView1<i64>) -> Result<Self> {
         let features = data.shape()[1];
         let mut subarrays = Vec::new();
         let mut item = 0;
-        for len in lenghts.iter().cloned() {
+        for len in lengths.iter().cloned() {
             subarrays.push(item..(item + len as usize));
             item += len as usize;
         }
         if item != data.shape()[0] {
-            Err(pyo3::exceptions::PyValueError::new_err(format!(
+            Err(Error::generic(format!(
                 "Lengths array specifies {} items, but data array has {} items",
                 item,
                 data.shape()[0]
@@ -99,9 +104,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         }
     }
 
-    pub fn extend(&mut self, other: &RaggedBuffer<T>) -> PyResult<()> {
+    pub fn extend(&mut self, other: &RaggedBuffer<T>) -> Result<()> {
         if self.features != other.features {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(Error::generic(format!(
                 "Features mismatch: {} != {}",
                 self.features, other.features
             )));
@@ -120,19 +125,18 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.items = 0;
     }
 
-    pub fn as_array<'a>(
-        &self,
-        py: Python<'a>,
-    ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
-        self.data
-            .to_pyarray(py)
-            .reshape((self.items, self.features))
-    }
+    // pub fn as_array<'a>(
+    //     &self,
+    //     py: Python<'a>,
+    // ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
+    //     self.data
+    //         .to_pyarray(py)
+    //         .reshape((self.items, self.features))
+    // }
 
-    pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
-        let data = x.as_array();
+    pub fn push(&mut self, data: &ArrayView2<T>) -> Result<()> {
         if data.dim().1 != self.features {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(Error::generic(format!(
                 "Features mismatch: {} != {}",
                 self.features,
                 data.dim().1
@@ -155,11 +159,10 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.subarrays.push(self.items..self.items);
     }
 
-    pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBuffer<T>> {
-        let indices = indices.as_array();
-        let indices = indices.as_slice().ok_or_else(|| {
-            pyo3::exceptions::PyValueError::new_err("Indices must be a **contiguous** 1D array")
-        })?;
+    pub fn swizzle(&self, indices: ArrayView1<i64>) -> Result<RaggedBuffer<T>> {
+        let indices = indices
+            .as_slice()
+            .ok_or_else(|| Error::generic("Indices must be a **contiguous** 1D array"))?;
         let mut subarrays = Vec::with_capacity(indices.len());
         let mut item = 0usize;
         for i in indices {
@@ -195,23 +198,16 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.subarrays.len()
     }
 
-    pub fn lengths<'a>(
-        &self,
-        py: Python<'a>,
-    ) -> &'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>> {
+    pub fn lengths(&self) -> Vec<i64> {
         self.subarrays
             .iter()
             .map(|r| (r.end - r.start) as i64)
             .collect::<Vec<_>>()
-            .to_pyarray(py)
     }
 
-    pub fn size1(&self, i: usize) -> PyResult<usize> {
+    pub fn size1(&self, i: usize) -> Result<usize> {
         if i >= self.subarrays.len() {
-            Err(pyo3::exceptions::PyIndexError::new_err(format!(
-                "Index {} out of range",
-                i
-            )))
+            Err(Error::generic(format!("Index {} out of range", i)))
         } else {
             Ok(self.subarrays[i].end - self.subarrays[i].start)
         }
@@ -221,7 +217,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.features
     }
 
-    pub fn __str__(&self) -> PyResult<String> {
+    pub fn __str__(&self) -> Result<String> {
         let mut array = String::new();
         array.push_str("RaggedBuffer([");
         array.push('\n');
@@ -261,7 +257,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         Ok(array)
     }
 
-    pub fn binop<Op: BinOp<T>>(&self, rhs: &RaggedBuffer<T>) -> PyResult<RaggedBuffer<T>> {
+    pub fn binop<Op: BinOp<T>>(&self, rhs: &RaggedBuffer<T>) -> Result<RaggedBuffer<T>> {
         if self.features == rhs.features && self.subarrays == rhs.subarrays {
             let mut data = Vec::with_capacity(self.data.len());
             for i in 0..self.data.len() {
@@ -299,7 +295,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         {
             rhs.binop::<Op>(self)
         } else {
-            Err(pyo3::exceptions::PyValueError::new_err(format!(
+            Err(Error::generic(format!(
                 "Dimensions mismatch: ({}, {:?}, {}) != ({}, {:?}, {})",
                 self.size0(),
                 self.subarrays
@@ -326,7 +322,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         }
     }
 
-    pub fn indices(&self, dim: usize) -> PyResult<RaggedBuffer<i64>> {
+    pub fn indices(&self, dim: usize) -> Result<RaggedBuffer<i64>> {
         match dim {
             0 => {
                 let mut indices = Vec::with_capacity(self.items);
@@ -356,14 +352,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     items: self.items,
                 })
             }
-            _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Invalid dimension {}",
-                dim
-            ))),
+            _ => Err(Error::generic(format!("Invalid dimension {}", dim))),
         }
     }
 
-    pub fn flat_indices(&self) -> PyResult<RaggedBuffer<i64>> {
+    pub fn flat_indices(&self) -> Result<RaggedBuffer<i64>> {
         Ok(RaggedBuffer {
             subarrays: self.subarrays.clone(),
             data: (0..self.items).map(|i| i as i64).collect(),
@@ -372,11 +365,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         })
     }
 
-    pub fn cat(buffers: &[&RaggedBuffer<T>], dim: usize) -> PyResult<RaggedBuffer<T>> {
+    pub fn cat(buffers: &[&RaggedBuffer<T>], dim: usize) -> Result<RaggedBuffer<T>> {
         match dim {
             0 => {
                 if buffers.iter().any(|b| b.features != buffers[0].features) {
-                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    return Err(Error::generic(format!(
                         "All buffers must have the same number of features, but found {}",
                         buffers
                             .iter()
@@ -418,7 +411,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     .iter()
                     .any(|b| b.subarrays.len() != buffers[0].subarrays.len())
                 {
-                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    return Err(Error::generic(format!(
                         "All buffers must have the same number of subarrays, but found {}",
                         buffers
                             .iter()
@@ -428,7 +421,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     )));
                 }
                 if buffers.iter().any(|b| b.features != buffers[0].features) {
-                    return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    return Err(Error::generic(format!(
                         "All buffers must have the same number of features, but found {}",
                         buffers
                             .iter()
@@ -463,10 +456,10 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     items: item,
                 })
             }
-            2 => Err(pyo3::exceptions::PyValueError::new_err(
+            2 => Err(Error::generic(
                 "Concatenation along dimension 2 not yet implemented",
             )),
-            _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            _ => Err(Error::generic(format!(
                 "Invalid dimension {}, RaggedBuffer only has 3 dimensions",
                 dim
             ))),
