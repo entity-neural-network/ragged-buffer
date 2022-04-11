@@ -20,4 +20,4 @@ ndarray = "0.15.4"
 debug = true
 
 [features]
-python = ["pyo3"]
+python = ["pyo3", "numpy"]
