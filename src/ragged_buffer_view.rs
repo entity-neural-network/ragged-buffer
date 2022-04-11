@@ -2,10 +2,10 @@ use std::fmt::Display;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
-use pyo3::{exceptions, PyResult, Python};
+use pyo3::{exceptions, PyErr, PyResult, Python};
 
 use crate::monomorphs::Index;
-use crate::ragged_buffer::{BinOp, RaggedBuffer};
+use crate::ragged_buffer::{BinOp, Error, RaggedBuffer};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum Slice {
@@ -135,7 +135,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
 
     pub fn from_array(data: PyReadonlyArray3<T>) -> Self {
         RaggedBufferView {
-            inner: Arc::new(RwLock::new(RaggedBuffer::from_array(data))),
+            inner: Arc::new(RwLock::new(RaggedBuffer::from_array(data.as_array()))),
             view: None,
         }
     }
@@ -145,7 +145,10 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         lengths: PyReadonlyArray1<i64>,
     ) -> PyResult<Self> {
         Ok(RaggedBufferView {
-            inner: Arc::new(RwLock::new(RaggedBuffer::from_flattened(data, lengths)?)),
+            inner: Arc::new(RwLock::new(RaggedBuffer::from_flattened(
+                data.as_array(),
+                lengths.as_array(),
+            )?)),
             view: None,
         })
     }
@@ -153,7 +156,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     pub fn extend(&mut self, other: &RaggedBufferView<T>) -> PyResult<()> {
         self.require_contiguous("extend")?;
         other.require_contiguous("extend")?;
-        self.get_mut().extend(&*other.get())
+        self.get_mut().extend(&*other.get()).map_err(Into::into)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
@@ -203,7 +206,14 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 data.to_pyarray(py)
                     .reshape((data.len() / (end2 - start2), end2 - start2))
             }
-            None => self.get().as_array(py),
+            None => {
+                let inner = self.get();
+                inner
+                    .data
+                    .to_pyarray(py)
+                    .reshape((inner.items, inner.features))
+                    .map_err(Into::into)
+            }
             _ => Err(pyo3::exceptions::PyValueError::new_err(
                 "as_array is not implmented for indexed views",
             )),
@@ -212,7 +222,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
 
     pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
         self.require_contiguous("push")?;
-        self.get_mut().push(x)
+        self.get_mut().push(&x.as_array()).map_err(Into::into)
     }
 
     pub fn push_empty(&mut self) -> PyResult<()> {
@@ -224,7 +234,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBufferView<T>> {
         match self.view {
             Some((_, _, _)) => todo!(),
-            None => Ok(self.get().swizzle(indices)?.view()),
+            None => Ok(self.get().swizzle(indices.as_array())?.view()),
         }
     }
 
@@ -252,7 +262,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         py: Python<'a>,
     ) -> PyResult<&'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>>> {
         match self.view {
-            None => Ok(self.get().lengths(py)),
+            None => Ok(self.get().lengths().to_pyarray(py)),
             Some((
                 Slice::Range {
                     start: start0,
@@ -283,19 +293,19 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             }
             _ => {
                 self.require_contiguous("lengths")?;
-                Ok(self.get().lengths(py))
+                Ok(self.get().lengths().to_pyarray(py))
             }
         }
     }
 
     pub fn size1(&self, i: usize) -> PyResult<usize> {
         self.require_contiguous("size1")?;
-        self.get().size1(i)
+        self.get().size1(i).map_err(Into::into)
     }
 
     pub fn __str__(&self) -> PyResult<String> {
         self.require_contiguous("__str__")?;
-        self.get().__str__()
+        self.get().__str__().map_err(Into::into)
     }
 
     pub fn binop<Op: BinOp<T>>(&self, rhs: &RaggedBufferView<T>) -> PyResult<RaggedBufferView<T>> {
@@ -324,13 +334,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             b.require_contiguous("cat")?;
             rbs.push(b.get());
         }
-        match RaggedBuffer::cat(&rbs.iter().map(|r| &**r).collect::<Vec<_>>(), dim) {
-            Ok(rb) => Ok(RaggedBufferView {
-                inner: Arc::new(RwLock::new(rb)),
-                view: None,
-            }),
-            Err(e) => Err(e),
-        }
+        let rb = RaggedBuffer::cat(&rbs.iter().map(|r| &**r).collect::<Vec<_>>(), dim)?;
+        Ok(RaggedBufferView {
+            inner: Arc::new(RwLock::new(rb)),
+            view: None,
+        })
     }
 
     #[allow(clippy::type_complexity)]
@@ -555,5 +563,11 @@ impl<T> RaggedBuffer<T> {
             inner: Arc::new(RwLock::new(self)),
             view: None,
         }
+    }
+}
+
+impl From<Error> for PyErr {
+    fn from(Error::Generic(msg): Error) -> PyErr {
+        exceptions::PyValueError::new_err(msg)
     }
 }

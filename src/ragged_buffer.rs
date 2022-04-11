@@ -3,7 +3,7 @@ use std::collections::{binary_heap, BinaryHeap};
 use std::fmt::{Display, Write};
 use std::ops::{Add, Mul, Range, Sub};
 
-use ndarray::{ArrayView1, ArrayView2};
+use ndarray::{ArrayView1, ArrayView2, ArrayView3};
 
 pub enum Error {
     Generic(String),
@@ -68,7 +68,7 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         }
     }
 
-    pub fn from_array(data: ArrayView2<T>) -> Self {
+    pub fn from_array(data: ArrayView3<T>) -> Self {
         let features = data.shape()[2];
         RaggedBuffer {
             data: data.iter().cloned().collect(),
@@ -124,15 +124,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.subarrays.clear();
         self.items = 0;
     }
-
-    // pub fn as_array<'a>(
-    //     &self,
-    //     py: Python<'a>,
-    // ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
-    //     self.data
-    //         .to_pyarray(py)
-    //         .reshape((self.items, self.features))
-    // }
 
     pub fn push(&mut self, data: &ArrayView2<T>) -> Result<()> {
         if data.dim().1 != self.features {
