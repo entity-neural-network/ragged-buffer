@@ -329,6 +329,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     }
 
     pub fn cat(buffers: &[&RaggedBufferView<T>], dim: usize) -> PyResult<RaggedBufferView<T>> {
+        if buffers.is_empty() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "cat requires at least one ragged buffer",
+            ));
+        }
         let mut rbs = Vec::new();
         for b in buffers {
             b.require_contiguous("cat")?;

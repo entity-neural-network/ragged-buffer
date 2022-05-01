@@ -5,6 +5,7 @@ use std::ops::{Add, Mul, Range, Sub};
 
 use ndarray::{ArrayView1, ArrayView2, ArrayView3};
 
+#[derive(Debug)]
 pub enum Error {
     Generic(String),
 }
@@ -124,6 +125,15 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         self.subarrays.clear();
         self.items = 0;
     }
+
+    // pub fn as_array<'a>(
+    //     &self,
+    //     py: Python<'a>,
+    // ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
+    //     self.data
+    //         .to_pyarray(py)
+    //         .reshape((self.items, self.features))
+    // }
 
     pub fn push(&mut self, data: &ArrayView2<T>) -> Result<()> {
         if data.dim().1 != self.features {
@@ -447,9 +457,76 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     items: item,
                 })
             }
-            2 => Err(Error::generic(
-                "Concatenation along dimension 2 not yet implemented",
-            )),
+            2 => {
+                // TODO: disallow broadcasting on some sequences but not other?
+                // TODO: think more about empty sequences
+                let sequences = buffers[0].size0();
+                if buffers.iter().any(|b| b.size0() != sequences) {
+                    return Err(Error::generic(format!(
+                        "All buffers must have the same number of sequences, but found {}",
+                        buffers
+                            .iter()
+                            .map(|b| b.size0().to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )));
+                }
+
+                let features = buffers.iter().map(|b| b.features).sum();
+                let mut subarrays = Vec::with_capacity(sequences);
+                let mut data = Vec::with_capacity(sequences * features);
+                let mut items = 0;
+                for iseq in 0..sequences {
+                    let seqlen = if buffers.iter().any(|b| {
+                        b.size1(iseq)
+                            .expect("All sequences should be the same length.")
+                            == 0
+                    }) {
+                        0
+                    } else {
+                        buffers
+                            .iter()
+                            .map(|b| {
+                                b.size1(iseq)
+                                    .expect("All sequences should be the same length.")
+                            })
+                            .max()
+                            .expect("There should be at least one buffer.")
+                    };
+                    subarrays.push(items..items + seqlen);
+                    items += seqlen;
+                    for iitem in 0..seqlen {
+                        for (ibuf, buffer) in buffers.iter().enumerate() {
+                            let _items = buffer.subarrays[iseq].len();
+                            if _items == 1 {
+                                data.extend_from_slice(
+                                    &buffer.data[buffer.subarrays[iseq].start * buffer.features
+                                        ..buffer.subarrays[iseq].end * buffer.features],
+                                );
+                            } else {
+                                if _items != seqlen {
+                                    return Err(Error::generic(format!(
+                                        "Buffer {} has {} items for sequence {}, but expected {}",
+                                        ibuf, _items, iseq, seqlen
+                                    )));
+                                }
+                                let start_item = buffer.subarrays[iseq].start + iitem;
+                                data.extend_from_slice(
+                                    &buffer.data[start_item * buffer.features
+                                        ..(start_item + 1) * buffer.features],
+                                );
+                            }
+                        }
+                    }
+                }
+
+                Ok(RaggedBuffer {
+                    items: data.len() / features,
+                    data,
+                    subarrays,
+                    features,
+                })
+            }
             _ => Err(Error::generic(format!(
                 "Invalid dimension {}, RaggedBuffer only has 3 dimensions",
                 dim

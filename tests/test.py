@@ -75,7 +75,8 @@ flattened = np.array(
 )
 assert np.all(rba.as_array() == flattened)
 assert rba == RaggedBufferF32.from_flattened(
-    flattened=flattened, lengths=np.array([2, 3, 4, 0, 0], dtype=np.int64),
+    flattened=flattened,
+    lengths=np.array([2, 3, 4, 0, 0], dtype=np.int64),
 )
 assert RaggedBufferF32(3) == RaggedBufferF32(3)
 
@@ -152,7 +153,15 @@ rb6 = RaggedBufferF32.from_flattened(
     np.array([3, 0, 2, 1], dtype=np.int64),
 )
 assert rb6[np.array([1, 3, 0], dtype=np.int64)] == RaggedBufferF32.from_flattened(
-    np.array([[13.0, 14.0, 15.0], [0, 0, 0], [1, 2, 3], [4, 5, 6],], dtype=np.float32),
+    np.array(
+        [
+            [13.0, 14.0, 15.0],
+            [0, 0, 0],
+            [1, 2, 3],
+            [4, 5, 6],
+        ],
+        dtype=np.float32,
+    ),
     np.array([0, 1, 3], dtype=np.int64),
 )
 
@@ -193,7 +202,8 @@ print("TEST 5 PASSED")
 mask = RaggedBufferI64.from_array(np.zeros((4, 1, 1), dtype=np.int64))
 offset = RaggedBufferI64.from_flattened(
     np.array([0, 1, 2, 3, 13, 22, 32, 41, 42, 43, 44, 45,], dtype=np.int64).reshape(
-        -1, 1,
+        -1,
+        1,
     ),
     np.ones(12, dtype=np.int64),
 )
@@ -372,31 +382,92 @@ feats = RaggedBufferF32.from_flattened(
 )
 assert np.array_equal(
     feats[1:2, :, :].as_array(),
-    np.array([[3.0, 6.0, 0.0, 4.0], [4.0, 7.0, 0.0, 5.0],], dtype=np.float32,),
+    np.array(
+        [
+            [3.0, 6.0, 0.0, 4.0],
+            [4.0, 7.0, 0.0, 5.0],
+        ],
+        dtype=np.float32,
+    ),
 ), f"{feats[1:2, :, :].as_array()}"
 assert np.array_equal(
     feats[:, :, 1:3].as_array(),
     np.array(
-        [[3.0, 1.0], [4.0, 0.0], [5.0, 1.0], [6.0, 0.0], [7.0, 0.0], [8.0, 0.0],],
+        [
+            [3.0, 1.0],
+            [4.0, 0.0],
+            [5.0, 1.0],
+            [6.0, 0.0],
+            [7.0, 0.0],
+            [8.0, 0.0],
+        ],
         dtype=np.float32,
     ),
 ), f"{feats[:, :, 1:3].as_array()}"
 assert np.array_equal(
     feats[:, 0, :].as_array(),
     np.array(
-        [[0.0, 3.0, 1.0, 1.0], [3.0, 6.0, 0.0, 4.0], [5.0, 8.0, 0.0, 6.0],],
+        [
+            [0.0, 3.0, 1.0, 1.0],
+            [3.0, 6.0, 0.0, 4.0],
+            [5.0, 8.0, 0.0, 6.0],
+        ],
         dtype=np.float32,
     ),
 ), f"{feats[:, :, 0].as_array()}"
 assert np.array_equal(
-    feats[:, 0:2:3, :].size1(), np.array([1, 1, 1], dtype=np.int64),
+    feats[:, 0:2:3, :].size1(),
+    np.array([1, 1, 1], dtype=np.int64),
 ), f"{feats[:, 0:2:3, :].size1()}"
 assert np.array_equal(
-    feats[:, 1:3, 0].size1(), np.array([2, 1, 0], dtype=np.int64),
+    feats[:, 1:3, 0].size1(),
+    np.array([2, 1, 0], dtype=np.int64),
 ), f"{feats[:, 1:3, 0].size1()}"
 assert np.array_equal(
-    feats[1:, 1:10, 0].size1(), np.array([1, 0], dtype=np.int64),
+    feats[1:, 1:10, 0].size1(),
+    np.array([1, 0], dtype=np.int64),
 ), f"{feats[1:, 1:10, 0].size1()}"
 
+
+# Test broadcasting concatenation along dim 2
+entities = RaggedBufferF32.from_flattened(
+    np.array(
+        [
+            [10, 3.0, 10, 1.0],
+            [11, 4.0, 11, 2.0],
+            [12, 5.0, 12, 3.0],
+            [13, 4.0, 13, 6.0],
+            [14, 5.0, 14, 7.0],
+            [15, 18.0, 15, 16.0],
+        ],
+        dtype=np.float32,
+    ),
+    np.array([3, 0, 2, 1], dtype=np.int64),
+)
+global_feats = RaggedBufferF32.from_array(
+    np.array(
+        [
+            [[0.0]],
+            [[1.0]],
+            [[2.0]],
+            [[3.0]],
+        ],
+        dtype=np.float32,
+    )
+)
+result = ragged_buffer.cat([entities, global_feats], dim=2)
+assert np.array_equal(
+    result.as_array(),
+    np.array(
+        [
+            [10, 3.0, 10, 1.0, 0.0],
+            [11, 4.0, 11, 2.0, 0.0],
+            [12, 5.0, 12, 3.0, 0.0],
+            [13, 4.0, 13, 6.0, 2.0],
+            [14, 5.0, 14, 7.0, 2.0],
+            [15, 18.0, 15, 16.0, 3.0],
+        ]
+    ),
+), f"{result}"
 
 print("ALL TESTS PASSED")
