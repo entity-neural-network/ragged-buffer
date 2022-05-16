@@ -6,7 +6,7 @@
 
 This Python package implements an efficient `RaggedBuffer` datatype that is similar to
 a 3D numpy array, but which allows for variable sequence length in the second
-dimension. It was created primarily for use in [ENN-PPO](https://github.com/entity-neural-network/incubator/tree/main/enn_ppo) 
+dimension. It was created primarily for use in [enn-trainer](https://github.com/entity-neural-network/enn-trainer) 
 and currently only supports a small selection of the numpy array methods.
 
 ![Ragged Buffer](https://user-images.githubusercontent.com/12845088/143787823-c6a585de-aeda-429c-9824-f4b4a98e6cea.png)
