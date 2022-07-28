@@ -36,7 +36,12 @@ class RaggedBuffer(Generic[ScalarType]):
     @overload
     def __mul__(self, other: float) -> RaggedBuffer[np.float32]: ...
     def __getitem__(
-        self, i: Union[int, NDArray[np.int64], Tuple[Union[int, List[int], slice], ...]]
+        self,
+        i: Union[
+            int,
+            NDArray[np.int64],
+            Tuple[Union[int, List[int], slice, NDArray[np.int64]], ...],
+        ],
     ) -> RaggedBuffer[ScalarType]: ...
     def __eq__(self, other: Any) -> bool: ...
     def __ne__(self, other: Any) -> bool: ...
