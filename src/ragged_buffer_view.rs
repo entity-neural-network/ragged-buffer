@@ -27,7 +27,7 @@ impl Slice {
 
     fn len(&self) -> usize {
         match self {
-            Slice::Range { start, end, step } => (end - start) / step,
+            Slice::Range { start, end, step } => (end - start + step - 1) / step,
             Slice::Permutation(permutation) => permutation.len(),
         }
     }
@@ -239,7 +239,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                     subarrays.push(item..item + items);
                     item += items;
                 }
-                let features = data.len() / item;
+                let features = (end2 - start2 + step2 - 1) / step2;
                 let materialized = RaggedBuffer {
                     data,
                     subarrays,
@@ -271,7 +271,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                     }
                     subarrays.push(item_start..items);
                 }
-                let features = data.len() / items;
+                let features = v2.len();
                 let materialized = RaggedBuffer {
                     data,
                     subarrays,
