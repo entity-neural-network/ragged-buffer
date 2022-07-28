@@ -1,3 +1,4 @@
+#![allow(clippy::format_push_string)] // Caused by FromPyObject macro
 use numpy::PyReadonlyArray1;
 use pyo3::types::PySlice;
 use pyo3::{FromPyObject, Py, PyResult};

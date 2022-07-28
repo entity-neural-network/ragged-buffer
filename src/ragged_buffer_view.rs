@@ -56,9 +56,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         i2: Index,
     ) -> PyResult<RaggedBufferView<T>> {
         // TODO: Check that i0, i1, i2 are valid indices
-        self.require_contiguous("get_slice")?;
+        let materialized = self.materialize();
         let v0 = match i0 {
-            Index::PermutationNP(_) => todo!(),
+            Index::PermutationNP(np) => {
+                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+            }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
                 start: i,
@@ -66,7 +68,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.size0().try_into().unwrap())?;
+                let indices = slice
+                    .as_ref(py)
+                    .indices(materialized.size0().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
@@ -75,7 +79,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             }
         };
         let v1 = match i1 {
-            Index::PermutationNP(_) => todo!(),
+            Index::PermutationNP(np) => {
+                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+            }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
                 start: i,
@@ -83,7 +89,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.len()?.try_into().unwrap())?;
+                let indices = slice
+                    .as_ref(py)
+                    .indices(materialized.len()?.try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
@@ -92,7 +100,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             }
         };
         let v2 = match i2 {
-            Index::PermutationNP(_) => todo!(),
+            Index::PermutationNP(np) => {
+                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+            }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
                 start: i,
@@ -100,7 +110,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 step: 1,
             },
             Index::Slice(slice) => {
-                let indices = slice.as_ref(py).indices(self.size2().try_into().unwrap())?;
+                let indices = slice
+                    .as_ref(py)
+                    .indices(materialized.size2().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
                     end: indices.stop as usize,
@@ -110,7 +122,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         };
 
         Ok(RaggedBufferView {
-            inner: self.inner.clone(),
+            inner: materialized.inner,
             view: Some((v0, v1, v2)),
         })
     }
@@ -123,10 +135,15 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         self.inner.write().unwrap()
     }
 
+    fn make_contiguous(&mut self) {
+        let materialized = self.materialize();
+        self.inner = materialized.inner;
+        self.view = None;
+    }
     fn require_contiguous(&self, method_name: &str) -> PyResult<()> {
         match self.view {
             Some(_) => Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "Cannot call method {} on a view",
+                "Cannot call method {} on a view. Call .materialize() first to get a materialized copy of the view.",
                 method_name
             ))),
             None => Ok(()),
@@ -154,13 +171,14 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     }
 
     pub fn extend(&mut self, other: &RaggedBufferView<T>) -> PyResult<()> {
-        self.require_contiguous("extend")?;
-        other.require_contiguous("extend")?;
-        self.get_mut().extend(&*other.get()).map_err(Into::into)
+        self.make_contiguous();
+        let other = other.materialize();
+        let other = other.get();
+        self.get_mut().extend(&*other).map_err(Into::into)
     }
 
     pub fn clear(&mut self) -> PyResult<()> {
-        self.require_contiguous("clear")?;
+        self.make_contiguous();
         self.get_mut().clear();
         Ok(())
     }
@@ -170,6 +188,20 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         py: Python<'a>,
     ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
         match self.view {
+            None => {
+                let inner = self.get();
+                inner
+                    .data
+                    .to_pyarray(py)
+                    .reshape((inner.items, inner.features))
+                    .map_err(Into::into)
+            }
+            _ => self.materialize().as_array(py),
+        }
+    }
+
+    pub fn materialize(&self) -> RaggedBufferView<T> {
+        match self.view.clone() {
             Some((
                 Slice::Range {
                     start: start0,
@@ -187,11 +219,12 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                     step: step2,
                 },
             )) => {
-                let mut data = Vec::with_capacity(
-                    (end0 - start0) * (end1 - start1) * (end2 - start2) / (step0 * step1 * step2),
-                );
+                let mut data = Vec::new();
+                let mut subarrays = Vec::new();
+                let mut item = 0;
                 let inner = self.get();
                 for i0 in (start0..end0).step_by(step0) {
+                    let mut items = 0;
                     for i1 in inner.subarrays[i0]
                         .clone()
                         .skip(start1)
@@ -201,32 +234,66 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                         for i2 in (start2..end2).step_by(step2) {
                             data.push(inner.data[i1 * inner.features + i2]);
                         }
+                        items += 1;
                     }
+                    subarrays.push(item..item + items);
+                    item += items;
                 }
-                data.to_pyarray(py)
-                    .reshape((data.len() / (end2 - start2), end2 - start2))
+                let features = data.len() / item;
+                let materialized = RaggedBuffer {
+                    data,
+                    subarrays,
+                    features,
+                    items: item,
+                };
+                RaggedBufferView {
+                    inner: Arc::new(RwLock::new(materialized)),
+                    view: None,
+                }
             }
-            None => {
+            Some((v0, v1, v2)) => {
+                let mut data = Vec::new();
+                let mut items = 0;
+                let mut subarrays = Vec::new();
                 let inner = self.get();
-                inner
-                    .data
-                    .to_pyarray(py)
-                    .reshape((inner.items, inner.features))
-                    .map_err(Into::into)
+                for i0 in v0.into_iter() {
+                    let item_start = items;
+                    let subarray = inner.subarrays[i0].clone();
+                    for i1 in v1.clone().into_iter() {
+                        if i1 >= subarray.len() {
+                            break;
+                        }
+                        let offset = (subarray.start + i1) * inner.features;
+                        for i2 in v2.clone().into_iter() {
+                            data.push(inner.data[offset + i2]);
+                        }
+                        items += 1;
+                    }
+                    subarrays.push(item_start..items);
+                }
+                let features = data.len() / items;
+                let materialized = RaggedBuffer {
+                    data,
+                    subarrays,
+                    features,
+                    items,
+                };
+                RaggedBufferView {
+                    inner: Arc::new(RwLock::new(materialized)),
+                    view: None,
+                }
             }
-            _ => Err(pyo3::exceptions::PyValueError::new_err(
-                "as_array is not implmented for indexed views",
-            )),
+            None => self.clone(),
         }
     }
 
     pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
-        self.require_contiguous("push")?;
+        self.make_contiguous();
         self.get_mut().push(&x.as_array()).map_err(Into::into)
     }
 
     pub fn push_empty(&mut self) -> PyResult<()> {
-        self.require_contiguous("push_empty")?;
+        self.make_contiguous();
         self.get_mut().push_empty();
         Ok(())
     }
@@ -298,14 +365,13 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
-    pub fn size1(&self, i: usize) -> PyResult<usize> {
-        self.require_contiguous("size1")?;
+    pub fn size1(&mut self, i: usize) -> PyResult<usize> {
+        self.make_contiguous();
         self.get().size1(i).map_err(Into::into)
     }
 
     pub fn __str__(&self) -> PyResult<String> {
-        self.require_contiguous("__str__")?;
-        self.get().__str__().map_err(Into::into)
+        self.materialize().get().__str__().map_err(Into::into)
     }
 
     pub fn binop<Op: BinOp<T>>(&self, rhs: &RaggedBufferView<T>) -> PyResult<RaggedBufferView<T>> {
@@ -318,13 +384,13 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         Ok(self.get().op_scalar::<Op>(scalar).view())
     }
 
-    pub fn indices(&self, dim: usize) -> PyResult<RaggedBufferView<i64>> {
-        self.require_contiguous("indices")?;
+    pub fn indices(&mut self, dim: usize) -> PyResult<RaggedBufferView<i64>> {
+        self.make_contiguous();
         Ok(self.get().indices(dim)?.view())
     }
 
-    pub fn flat_indices(&self) -> PyResult<RaggedBufferView<i64>> {
-        self.require_contiguous("flat_indices")?;
+    pub fn flat_indices(&mut self) -> PyResult<RaggedBufferView<i64>> {
+        self.make_contiguous();
         Ok(self.get().flat_indices()?.view())
     }
 
@@ -347,23 +413,24 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn padpack(&self) -> PyResult<Option<(Vec<i64>, Vec<f32>, Vec<i64>, (usize, usize))>> {
-        self.require_contiguous("padpack")?;
+    pub fn padpack(&mut self) -> PyResult<Option<(Vec<i64>, Vec<f32>, Vec<i64>, (usize, usize))>> {
+        self.make_contiguous();
         Ok(self.get().padpack())
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> PyResult<usize> {
         self.require_contiguous("len")?;
         Ok(self.get().len())
     }
 
-    pub fn is_empty(&self) -> PyResult<bool> {
-        self.require_contiguous("is_empty")?;
+    pub fn is_empty(&mut self) -> PyResult<bool> {
+        self.make_contiguous();
         Ok(self.get().is_empty())
     }
 
-    pub fn items(&self) -> PyResult<usize> {
-        self.require_contiguous("items")?;
+    pub fn items(&mut self) -> PyResult<usize> {
+        self.make_contiguous();
         Ok(self.get().items())
     }
 

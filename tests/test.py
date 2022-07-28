@@ -470,4 +470,20 @@ assert np.array_equal(
     ),
 ), f"{result}"
 
+# Test complex indexing
+sliced = entities[[1, 0], 0:3:2, [0, 3, 2]]
+assert np.array_equal(
+    sliced.as_array(),
+    np.array(
+        [
+            [10, 1.0, 10],
+            [12, 3.0, 12],
+        ]
+    ),
+), f"{sliced}"
+assert np.array_equal(
+    sliced.materialize().size1(),
+    np.array([0, 2], dtype=np.int64),
+), f"{sliced.size1()}"
+
 print("ALL TESTS PASSED")

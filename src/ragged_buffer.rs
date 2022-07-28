@@ -25,6 +25,7 @@ pub struct RaggedBuffer<T> {
     // The start index of the data of an item is obtained by multiplying its index by `features`.
     pub subarrays: Vec<Range<usize>>,
     pub features: usize,
+    // equal to data.len() / features
     pub items: usize,
 }
 
