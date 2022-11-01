@@ -25,8 +25,6 @@ pub struct RaggedBuffer<T> {
     // The start index of the data of an item is obtained by multiplying its index by `features`.
     pub subarrays: Vec<Range<usize>>,
     pub features: usize,
-    // equal to data.len() / features
-    pub items: usize,
 }
 
 pub trait BinOp<T> {
@@ -66,7 +64,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
             data: Vec::new(),
             subarrays: Vec::new(),
             features,
-            items: 0,
         }
     }
 
@@ -78,7 +75,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 .map(|i| i * data.shape()[1]..(i + 1) * data.shape()[1])
                 .collect(),
             features,
-            items: data.shape()[0] * data.shape()[1],
         }
     }
 
@@ -101,7 +97,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 data: data.iter().cloned().collect(),
                 subarrays,
                 features,
-                items: item,
             })
         }
     }
@@ -113,18 +108,16 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 self.features, other.features
             )));
         }
-        let item = self.items;
+        let item = self.items();
         self.data.extend(other.data.iter());
         self.subarrays
             .extend(other.subarrays.iter().map(|r| r.start + item..r.end + item));
-        self.items += other.items;
         Ok(())
     }
 
     pub fn clear(&mut self) {
         self.data.clear();
         self.subarrays.clear();
-        self.items = 0;
     }
 
     // pub fn as_array<'a>(
@@ -144,7 +137,8 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 data.dim().1
             )));
         }
-        self.subarrays.push(self.items..(self.items + data.dim().0));
+        self.subarrays
+            .push(self.items()..(self.items() + data.dim().0));
         match data.as_slice() {
             Some(slice) => self.data.extend_from_slice(slice),
             None => {
@@ -153,12 +147,11 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 }
             }
         }
-        self.items += data.dim().0;
         Ok(())
     }
 
     pub fn push_empty(&mut self) {
-        self.subarrays.push(self.items..self.items);
+        self.subarrays.push(self.items()..self.items());
     }
 
     pub fn swizzle(&self, indices: ArrayView1<i64>) -> Result<RaggedBuffer<T>> {
@@ -181,7 +174,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
             data,
             subarrays,
             features: self.features,
-            items: item,
         })
     }
 
@@ -192,7 +184,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
             subarrays: vec![0..subarray.len()],
             data: self.data[start * self.features..end * self.features].to_vec(),
             features: self.features,
-            items: subarray.len(),
         }
     }
 
@@ -269,7 +260,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 data,
                 subarrays: self.subarrays.clone(),
                 features: self.features,
-                items: self.items,
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
@@ -289,7 +279,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 data,
                 subarrays: self.subarrays.clone(),
                 features: self.features,
-                items: self.items,
             })
         } else if self.features == rhs.features
             && self.subarrays.len() == rhs.subarrays.len()
@@ -320,14 +309,13 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
             data: self.data.iter().map(|x| Op::op(*x, scalar)).collect(),
             subarrays: self.subarrays.clone(),
             features: self.features,
-            items: self.items,
         }
     }
 
     pub fn indices(&self, dim: usize) -> Result<RaggedBuffer<i64>> {
         match dim {
             0 => {
-                let mut indices = Vec::with_capacity(self.items);
+                let mut indices = Vec::with_capacity(self.items());
                 for (index, subarray) in self.subarrays.iter().enumerate() {
                     for _ in subarray.clone() {
                         indices.push(index as i64);
@@ -337,11 +325,10 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     subarrays: self.subarrays.clone(),
                     data: indices,
                     features: 1,
-                    items: self.items,
                 })
             }
             1 => {
-                let mut indices = Vec::with_capacity(self.items);
+                let mut indices = Vec::with_capacity(self.items());
                 for subarray in &self.subarrays {
                     for (i, _) in subarray.clone().enumerate() {
                         indices.push(i as i64);
@@ -351,7 +338,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     subarrays: self.subarrays.clone(),
                     data: indices,
                     features: 1,
-                    items: self.items,
                 })
             }
             _ => Err(Error::generic(format!("Invalid dimension {}", dim))),
@@ -361,9 +347,8 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
     pub fn flat_indices(&self) -> Result<RaggedBuffer<i64>> {
         Ok(RaggedBuffer {
             subarrays: self.subarrays.clone(),
-            data: (0..self.items).map(|i| i as i64).collect(),
+            data: (0..self.items()).map(|i| i as i64).collect(),
             features: 1,
-            items: self.items,
         })
     }
 
@@ -399,13 +384,12 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                             })
                             .collect::<Vec<_>>(),
                     );
-                    item += buffer.items;
+                    item += buffer.items();
                 }
                 Ok(RaggedBuffer {
                     data,
                     subarrays,
                     features: buffers[0].features,
-                    items: item,
                 })
             }
             1 => {
@@ -455,7 +439,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                     data,
                     subarrays,
                     features: buffers[0].features,
-                    items: item,
                 })
             }
             2 => {
@@ -522,7 +505,6 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
                 }
 
                 Ok(RaggedBuffer {
-                    items: data.len() / features,
                     data,
                     subarrays,
                     features,
@@ -593,7 +575,7 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
     }
 
     pub fn items(&self) -> usize {
-        self.items
+        self.subarrays.last().map(|r| r.end).unwrap_or(0)
     }
 
     pub fn len(&self) -> usize {

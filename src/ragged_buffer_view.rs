@@ -193,7 +193,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                 inner
                     .data
                     .to_pyarray(py)
-                    .reshape((inner.items, inner.features))
+                    .reshape((inner.items(), inner.features))
                     .map_err(Into::into)
             }
             _ => self.materialize().as_array(py),
@@ -244,7 +244,6 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                     data,
                     subarrays,
                     features,
-                    items: item,
                 };
                 RaggedBufferView {
                     inner: Arc::new(RwLock::new(materialized)),
@@ -276,7 +275,6 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
                     data,
                     subarrays,
                     features,
-                    items,
                 };
                 RaggedBufferView {
                     inner: Arc::new(RwLock::new(materialized)),
