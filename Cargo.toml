@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 name = "ragged-buffer"
 readme = "README.md"
 repository = "https://github.com/entity-neural-network/ragged-buffer"
-version = "0.4.4"
+version = "0.4.5"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
