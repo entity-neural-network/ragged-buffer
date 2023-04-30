@@ -1,20 +1,21 @@
 [package]
-name = "ragged-buffer"
-version = "0.4.4"
-edition = "2021"
 authors = ["Clemens Winter <clemenswinter1@gmail.com>"]
-readme = "README.md"
-license = "MIT OR Apache-2.0"
 description = "Efficient RaggedBuffer datatype that implements 3D arrays with variable-length 2nd dimension."
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "ragged-buffer"
+readme = "README.md"
+repository = "https://github.com/entity-neural-network/ragged-buffer"
+version = "0.4.4"
 
 [lib]
-name = "ragged_buffer"
 crate-type = ["cdylib", "rlib"]
+name = "ragged_buffer"
 
 [dependencies]
-numpy = { version = "0.16.2", optional = true }
-pyo3 = { version = "0.16.5", features = ["extension-module"], optional = true }
 ndarray = "0.15.4"
+numpy = {version = "0.16.2", optional = true}
+pyo3 = {version = "0.16.5", features = ["extension-module"], optional = true}
 
 [profile.release]
 debug = true
