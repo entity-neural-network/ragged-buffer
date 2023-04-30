@@ -177,6 +177,27 @@ impl<T: Copy + Display + std::fmt::Debug> RaggedBuffer<T> {
         })
     }
 
+    // TODO: dedupe with swizzle
+    pub fn swizzle_usize(&self, indices: &[usize]) -> Result<RaggedBuffer<T>> {
+        let mut subarrays = Vec::with_capacity(indices.len());
+        let mut item = 0usize;
+        for &i in indices {
+            let sublen = self.subarrays[i].end - self.subarrays[i].start;
+            subarrays.push(item..(item + sublen));
+            item += sublen;
+        }
+        let mut data = Vec::with_capacity(item * self.features);
+        for i in indices {
+            let Range { start, end } = self.subarrays[*i as usize];
+            data.extend_from_slice(&self.data[start * self.features..end * self.features]);
+        }
+        Ok(RaggedBuffer {
+            data,
+            subarrays,
+            features: self.features,
+        })
+    }
+
     pub fn get(&self, i: usize) -> RaggedBuffer<T> {
         let subarray = self.subarrays[i].clone();
         let Range { start, end } = subarray;

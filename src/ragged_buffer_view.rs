@@ -303,6 +303,13 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
+    pub fn swizzle_usize(&self, indices: &[usize]) -> PyResult<RaggedBufferView<T>> {
+        match self.view {
+            Some((_, _, _)) => todo!(),
+            None => Ok(self.get().swizzle_usize(indices)?.view()),
+        }
+    }
+
     pub fn get_sequence(&self, i: usize) -> PyResult<RaggedBufferView<T>> {
         self.require_contiguous("get_sequence")?;
         Ok(self.get().get(i).view())
