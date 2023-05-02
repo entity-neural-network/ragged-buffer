@@ -169,7 +169,7 @@ impl RaggedBufferI64 {
         match index {
             MultiIndex::Index1(index) => match index {
                 Index::PermutationNP(indices) => Ok(RaggedBufferI64(self.0.swizzle(indices)?)),
-                Index::Permutation(_indices) => panic!("oh no"), //Ok(RaggedBufferI64(self.0.swizzle(indices)?)),
+                Index::Permutation(indices) => Ok(RaggedBufferI64(self.0.swizzle_usize(&indices)?)),
                 Index::Int(i) => Ok(RaggedBufferI64(self.0.get_sequence(i)?)),
                 Index::Slice(slice) => panic!("{:?}", slice),
             },
