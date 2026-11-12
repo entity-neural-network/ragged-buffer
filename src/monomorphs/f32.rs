@@ -1,4 +1,7 @@
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, PyReadonlyArrayDyn, ToPyArray};
+use numpy::{
+    PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3,
+    PyReadonlyArrayDyn, PyUntypedArrayMethods, ToPyArray,
+};
 use pyo3::basic::CompareOp;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -8,7 +11,7 @@ use crate::ragged_buffer_view::RaggedBufferView;
 
 use super::{Index, MultiIndex, PadpackResult};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct RaggedBufferF32(pub RaggedBufferView<f32>);
 
@@ -19,20 +22,20 @@ impl RaggedBufferF32 {
         RaggedBufferF32(RaggedBufferView::new(features))
     }
     #[classmethod]
-    fn from_array(_cls: &PyType, array: PyReadonlyArray3<f32>) -> Self {
+    fn from_array(_cls: &Bound<'_, PyType>, array: PyReadonlyArray3<'_, f32>) -> Self {
         RaggedBufferF32(RaggedBufferView::from_array(array))
     }
     #[classmethod]
     fn from_flattened(
-        _cls: &PyType,
-        flattened: PyReadonlyArray2<f32>,
-        lengths: PyReadonlyArray1<i64>,
+        _cls: &Bound<'_, PyType>,
+        flattened: PyReadonlyArray2<'_, f32>,
+        lengths: PyReadonlyArray1<'_, i64>,
     ) -> PyResult<Self> {
         Ok(RaggedBufferF32(RaggedBufferView::from_flattened(
             flattened, lengths,
         )?))
     }
-    fn push(&mut self, items: PyReadonlyArrayDyn<f32>) -> PyResult<()> {
+    fn push(&mut self, items: PyReadonlyArrayDyn<'_, f32>) -> PyResult<()> {
         if items.ndim() == 1 && items.len() == 0 {
             self.0.push_empty()
         } else if items.ndim() == 2 {
@@ -55,23 +58,21 @@ impl RaggedBufferF32 {
         self.0.clear()
     }
 
-    fn as_array<'a>(
-        &self,
-        py: Python<'a>,
-    ) -> PyResult<&'a numpy::PyArray<f32, numpy::ndarray::Dim<[usize; 2]>>> {
+    fn as_array<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f32>>> {
         self.0.as_array(py)
     }
 
-    fn extend(&mut self, other: &RaggedBufferF32) -> PyResult<()> {
+    fn extend(&mut self, other: PyRef<'_, RaggedBufferF32>) -> PyResult<()> {
         self.0.extend(&other.0)
     }
     fn size0(&self) -> usize {
         self.0.size0()
     }
-    fn size1(&mut self, py: Python, i: Option<usize>) -> PyResult<PyObject> {
+    #[pyo3(signature = (i=None))]
+    fn size1(&mut self, py: Python<'_>, i: Option<usize>) -> PyResult<Py<PyAny>> {
         match i {
-            Some(i) => self.0.size1(i).map(|s| s.into_py(py)),
-            None => self.0.lengths(py).map(|ok| ok.into_py(py)),
+            Some(i) => Ok(self.0.size1(i)?.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(self.0.lengths(py)?.into_any().unbind()),
         }
     }
     fn size2(&self) -> usize {
@@ -84,14 +85,18 @@ impl RaggedBufferF32 {
         Ok(RaggedBufferI64(self.0.flat_indices()?))
     }
     #[classmethod]
-    fn cat(_cls: &PyType, buffers: Vec<PyRef<RaggedBufferF32>>, dim: usize) -> PyResult<Self> {
+    fn cat(
+        _cls: &Bound<'_, PyType>,
+        buffers: Vec<PyRef<'_, RaggedBufferF32>>,
+        dim: usize,
+    ) -> PyResult<Self> {
         Ok(RaggedBufferF32(RaggedBufferView::cat(
             &buffers.iter().map(|b| &b.0).collect::<Vec<_>>(),
             dim,
         )?))
     }
     #[allow(clippy::type_complexity)]
-    fn padpack<'a>(&mut self, py: Python<'a>) -> PadpackResult<'a> {
+    fn padpack<'py>(&mut self, py: Python<'py>) -> PadpackResult<'py> {
         match self.0.padpack()? {
             Some((padbpack_index, padpack_batch, padpack_inverse_index, dims)) => Ok(Some((
                 padbpack_index.to_pyarray(py).reshape(dims)?,
@@ -120,7 +125,7 @@ impl RaggedBufferF32 {
         self.0.__str__()
     }
 
-    fn __richcmp__(&self, other: RaggedBufferF32, op: CompareOp) -> PyResult<bool> {
+    fn __richcmp__(&self, other: PyRef<'_, RaggedBufferF32>, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.0 == other.0),
             CompareOp::Ne => Ok(self.0 != other.0),
@@ -130,11 +135,10 @@ impl RaggedBufferF32 {
         }
     }
 
-    // Is substituted for #[cfg(any())] for bool.rs to omit method
-    #[cfg(all())]
+    // BEGIN ARITHMETIC (removed from bool.rs by monomorphize.sh)
     fn __add__(
-        lhs: PyRef<RaggedBufferF32>,
-        rhs: RaggedBufferF32OrF32,
+        lhs: PyRef<'_, RaggedBufferF32>,
+        rhs: RaggedBufferF32OrF32<'_>,
     ) -> PyResult<RaggedBufferF32> {
         match rhs {
             RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(
@@ -146,10 +150,9 @@ impl RaggedBufferF32 {
         }
     }
 
-    #[cfg(all())]
     fn __mul__(
-        lhs: PyRef<RaggedBufferF32>,
-        rhs: RaggedBufferF32OrF32,
+        lhs: PyRef<'_, RaggedBufferF32>,
+        rhs: RaggedBufferF32OrF32<'_>,
     ) -> PyResult<RaggedBufferF32> {
         match rhs {
             RaggedBufferF32OrF32::RB(rhs) => Ok(RaggedBufferF32(
@@ -161,12 +164,12 @@ impl RaggedBufferF32 {
         }
     }
 
-    #[cfg(all())]
-    fn __isub__(&mut self, rhs: RaggedBufferF32) -> PyResult<()> {
+    fn __isub__(&mut self, rhs: PyRef<'_, RaggedBufferF32>) -> PyResult<()> {
         self.0.binop_mut::<crate::ragged_buffer::BinOpSub>(&rhs.0)
     }
+    // END ARITHMETIC
 
-    fn __getitem__(&self, index: MultiIndex) -> PyResult<RaggedBufferF32> {
+    fn __getitem__(&self, py: Python<'_>, index: MultiIndex<'_>) -> PyResult<RaggedBufferF32> {
         match index {
             MultiIndex::Index1(index) => match index {
                 Index::PermutationNP(indices) => Ok(RaggedBufferF32(self.0.swizzle(indices)?)),
@@ -174,9 +177,9 @@ impl RaggedBufferF32 {
                 Index::Int(i) => Ok(RaggedBufferF32(self.0.get_sequence(i)?)),
                 Index::Slice(slice) => panic!("{:?}", slice),
             },
-            MultiIndex::Index3((i0, i1, i2)) => Ok(RaggedBufferF32(Python::with_gil(|py| {
-                self.0.get_slice(py, i0, i1, i2)
-            })?)),
+            MultiIndex::Index3((i0, i1, i2)) => {
+                Ok(RaggedBufferF32(self.0.get_slice(py, i0, i1, i2)?))
+            }
             x => panic!("{:?}", x),
         }
     }
@@ -185,8 +188,10 @@ impl RaggedBufferF32 {
     }
 }
 
+// BEGIN ARITHMETIC (removed from bool.rs by monomorphize.sh)
 #[derive(FromPyObject)]
-pub enum RaggedBufferF32OrF32<'p> {
-    RB(PyRef<'p, RaggedBufferF32>),
+pub enum RaggedBufferF32OrF32<'py> {
+    RB(PyRef<'py, RaggedBufferF32>),
     Scalar(f32),
 }
+// END ARITHMETIC

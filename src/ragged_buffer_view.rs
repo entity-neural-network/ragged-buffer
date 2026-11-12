@@ -1,8 +1,12 @@
 use std::fmt::Display;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3, ToPyArray};
-use pyo3::{exceptions, PyErr, PyResult, Python};
+use numpy::{
+    PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3,
+    ToPyArray,
+};
+use pyo3::types::PySliceMethods;
+use pyo3::{exceptions, Bound, PyErr, PyResult, Python};
 
 use crate::monomorphs::Index;
 use crate::ragged_buffer::{BinOp, Error, RaggedBuffer};
@@ -48,9 +52,9 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
-    pub fn get_slice<'a>(
+    pub fn get_slice(
         &self,
-        py: Python<'a>,
+        py: Python<'_>,
         i0: Index,
         i1: Index,
         i2: Index,
@@ -59,7 +63,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         let materialized = self.materialize();
         let v0 = match i0 {
             Index::PermutationNP(np) => {
-                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+                Slice::Permutation(np.as_array().iter().copied().map(|x| x as usize).collect())
             }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
@@ -69,7 +73,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             },
             Index::Slice(slice) => {
                 let indices = slice
-                    .as_ref(py)
+                    .bind(py)
                     .indices(materialized.size0().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
@@ -80,7 +84,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         };
         let v1 = match i1 {
             Index::PermutationNP(np) => {
-                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+                Slice::Permutation(np.as_array().iter().copied().map(|x| x as usize).collect())
             }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
@@ -90,7 +94,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             },
             Index::Slice(slice) => {
                 let indices = slice
-                    .as_ref(py)
+                    .bind(py)
                     .indices(materialized.len()?.try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
@@ -101,7 +105,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         };
         let v2 = match i2 {
             Index::PermutationNP(np) => {
-                Slice::Permutation(np.to_vec()?.into_iter().map(|x| x as usize).collect())
+                Slice::Permutation(np.as_array().iter().copied().map(|x| x as usize).collect())
             }
             Index::Permutation(p) => Slice::Permutation(p),
             Index::Int(i) => Slice::Range {
@@ -111,7 +115,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
             },
             Index::Slice(slice) => {
                 let indices = slice
-                    .as_ref(py)
+                    .bind(py)
                     .indices(materialized.size2().try_into().unwrap())?;
                 Slice::Range {
                     start: indices.start as usize,
@@ -127,11 +131,11 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         })
     }
 
-    fn get(&self) -> RwLockReadGuard<RaggedBuffer<T>> {
+    fn get(&self) -> RwLockReadGuard<'_, RaggedBuffer<T>> {
         self.inner.read().unwrap()
     }
 
-    fn get_mut(&self) -> RwLockWriteGuard<RaggedBuffer<T>> {
+    fn get_mut(&self) -> RwLockWriteGuard<'_, RaggedBuffer<T>> {
         self.inner.write().unwrap()
     }
 
@@ -150,7 +154,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
-    pub fn from_array(data: PyReadonlyArray3<T>) -> Self {
+    pub fn from_array(data: PyReadonlyArray3<'_, T>) -> Self {
         RaggedBufferView {
             inner: Arc::new(RwLock::new(RaggedBuffer::from_array(data.as_array()))),
             view: None,
@@ -158,8 +162,8 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
     }
 
     pub fn from_flattened(
-        data: PyReadonlyArray2<T>,
-        lengths: PyReadonlyArray1<i64>,
+        data: PyReadonlyArray2<'_, T>,
+        lengths: PyReadonlyArray1<'_, i64>,
     ) -> PyResult<Self> {
         Ok(RaggedBufferView {
             inner: Arc::new(RwLock::new(RaggedBuffer::from_flattened(
@@ -183,10 +187,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         Ok(())
     }
 
-    pub fn as_array<'a>(
-        &self,
-        py: Python<'a>,
-    ) -> PyResult<&'a numpy::PyArray<T, numpy::ndarray::Dim<[usize; 2]>>> {
+    pub fn as_array<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<T>>> {
         match self.view {
             None => {
                 let inner = self.get();
@@ -285,7 +286,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
-    pub fn push(&mut self, x: &PyReadonlyArray2<T>) -> PyResult<()> {
+    pub fn push(&mut self, x: &PyReadonlyArray2<'_, T>) -> PyResult<()> {
         self.make_contiguous();
         self.get_mut().push(&x.as_array()).map_err(Into::into)
     }
@@ -296,7 +297,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         Ok(())
     }
 
-    pub fn swizzle(&self, indices: PyReadonlyArray1<i64>) -> PyResult<RaggedBufferView<T>> {
+    pub fn swizzle(&self, indices: PyReadonlyArray1<'_, i64>) -> PyResult<RaggedBufferView<T>> {
         match self.view {
             Some((_, _, _)) => todo!(),
             None => Ok(self.get().swizzle(indices.as_array())?.view()),
@@ -329,10 +330,7 @@ impl<T: numpy::Element + Copy + Display + std::fmt::Debug> RaggedBufferView<T> {
         }
     }
 
-    pub fn lengths<'a>(
-        &self,
-        py: Python<'a>,
-    ) -> PyResult<&'a numpy::PyArray<i64, numpy::ndarray::Dim<[usize; 1]>>> {
+    pub fn lengths<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<i64>>> {
         match self.view {
             None => Ok(self.get().lengths().to_pyarray(py)),
             Some((

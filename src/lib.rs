@@ -12,7 +12,8 @@ pub mod ragged_buffer_view;
 
 #[cfg(feature = "python")]
 #[pymodule]
-fn ragged_buffer(_py: Python, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "ragged_buffer")]
+fn ragged_buffer_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // New exports also have to be added to __init__.py
     m.add_class::<monomorphs::RaggedBufferF32>()?;
     m.add_class::<monomorphs::RaggedBufferI64>()?;
@@ -24,9 +25,9 @@ fn ragged_buffer(_py: Python, m: &PyModule) -> PyResult<()> {
 #[cfg(feature = "python")]
 #[pyfunction]
 fn translate_rotate(
-    source: &monomorphs::RaggedBufferF32,
-    translation: monomorphs::RaggedBufferF32,
-    rotation: monomorphs::RaggedBufferF32,
+    source: PyRef<'_, monomorphs::RaggedBufferF32>,
+    translation: PyRef<'_, monomorphs::RaggedBufferF32>,
+    rotation: PyRef<'_, monomorphs::RaggedBufferF32>,
 ) -> PyResult<()> {
     ragged_buffer_view::translate_rotate(&source.0, &translation.0, &rotation.0)
 }

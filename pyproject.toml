@@ -1,11 +1,13 @@
 [build-system]
-requires = ["maturin>=0.13,<0.14"]
+requires = ["maturin>=1,<2"]
 build-backend = "maturin"
 
 [project]
 name = "ragged-buffer"
+dynamic = ["version"]
 dependencies = ["numpy~=1.21"]
-requires-python = ">=3.7"
+# Minimum supported by pyo3 0.30.
+requires-python = ">=3.9"
 classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Programming Language :: Rust",
